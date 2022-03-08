@@ -52,6 +52,7 @@ interface TraceContextState {
     traceIndexing: boolean;
     style: OutputComponentStyle;
     backgroundTheme: string;
+    shouldRenderOutputs: boolean;
 }
 
 export class TraceContextComponent extends React.Component<TraceContextProps, TraceContextState> {
@@ -100,6 +101,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             currentRange: traceRange,
             currentViewRange: viewRange,
             currentTimeSelection: undefined,
+            shouldRenderOutputs: false,
             experiment: this.props.experiment,
             traceIndexing: ((this.props.experiment.indexingStatus === this.INDEXING_RUNNING_STATUS) || (this.props.experiment.indexingStatus === this.INDEXING_CLOSED_STATUS)),
             style: {
@@ -257,7 +259,11 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private onResize() {
         const newWidth = this.traceContextContainer.current ? this.traceContextContainer.current.clientWidth - this.SCROLLBAR_PADDING : 0;
         const bounds = this.traceContextContainer.current ? this.traceContextContainer.current.getBoundingClientRect() : { left: this.DEFAULT_COMPONENT_LEFT };
-        this.setState(prevState => ({ style: { ...prevState.style, width: newWidth, componentLeft: bounds.left } }));
+        this.setState(prevState => ({
+            style: { ...prevState.style, width: newWidth, componentLeft: bounds.left },
+            shouldRenderOutputs: newWidth > 0
+            // Should not render outputs if width = 0, will crash timegraph-chart components.
+        }));
         this.widgetResizeHandlers.forEach(h => h());
     }
 
@@ -298,7 +304,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             ref={this.traceContextContainer}>
             <TooltipComponent ref={this.tooltipComponent} />
             <TooltipXYComponent ref={this.tooltipXYComponent} />
-            {this.props.outputs.length ? this.renderOutputs() : this.renderPlaceHolder()}
+            {(this.props.outputs.length && this.state.shouldRenderOutputs) ? this.renderOutputs() : this.renderPlaceHolder()}
         </div>;
     }
 
