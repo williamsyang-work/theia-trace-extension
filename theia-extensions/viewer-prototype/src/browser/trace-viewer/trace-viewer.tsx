@@ -1,5 +1,5 @@
 import { DisposableCollection, MessageService, Path } from '@theia/core';
-import { ApplicationShell, Message, StatusBar, WidgetManager } from '@theia/core/lib/browser';
+import { ApplicationShell, Message, StatusBar, WidgetManager, StatefulWidget } from '@theia/core/lib/browser';
 import { ReactWidget } from '@theia/core/lib/browser/widgets/react-widget';
 import { inject, injectable, postConstruct } from 'inversify';
 import { OutputDescriptor } from 'tsp-typescript-client/lib/models/output-descriptor';
@@ -29,7 +29,7 @@ export interface TraceViewerWidgetOptions {
 }
 
 @injectable()
-export class TraceViewerWidget extends ReactWidget {
+export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
     static ID = 'trace-viewer';
     static LABEL = 'Trace Viewer';
 
@@ -246,7 +246,7 @@ export class TraceViewerWidget extends ReactWidget {
         return this.outputDescriptors;
     }
 
-    restoreState(state: OutputDescriptor[]) {
+    restoreState(state: OutputDescriptor[]): void {
         this.outputDescriptors = state;
     }
 
