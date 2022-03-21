@@ -15,6 +15,7 @@ export class TimeRange {
         this.offset = offset;
     }
 
+
     /**
      * Get the range start time.
      * If an offset is present the return value is start + offset.
@@ -50,4 +51,22 @@ export class TimeRange {
     public getOffset(): bigint | undefined {
         return this.offset;
     }
+
+    /**
+     * Create a string object that can be JSON.stringified
+     */
+    public toString(): TimeRangeString { 
+        return {
+            start: this.start.toString(),
+            end: this.end.toString(),
+            offset: this.offset?.toString()
+        }
+    }
 }
+
+export interface TimeRangeString {
+    start: string;
+    end: string;
+    offset?: string;
+}
+

@@ -10,7 +10,7 @@ import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-cont
 import { OutputDescriptor } from 'tsp-typescript-client/lib/models/output-descriptor';
 import { Experiment } from 'tsp-typescript-client/lib/models/experiment';
 import { TspClient } from 'tsp-typescript-client/lib/protocol/tsp-client';
-import { TimeRange } from 'traceviewer-base/lib/utils/time-range';
+import { TimeRange, TimeRangeString } from 'traceviewer-base/lib/utils/time-range';
 import { TableOutputComponent } from './table-output-component';
 import { TimegraphOutputComponent } from './timegraph-output-component';
 import { OutputComponentStyle } from './utils/output-component-style';
@@ -42,6 +42,7 @@ interface TraceContextProps {
     addResizeHandler: (handler: () => void) => void;
     removeResizeHandler: (handler: () => void) => void;
     backgroundTheme: string;
+    persistedState: PersistedState | undefined;
 }
 
 interface TraceContextState {
@@ -54,6 +55,15 @@ interface TraceContextState {
     style: OutputComponentStyle;
     backgroundTheme: string;
     shouldRenderOutputs: boolean;
+}
+
+export interface PersistedState {
+    outputs: OutputDescriptor[];
+    currentRange: TimeRangeString;
+    currentViewRange: TimeRangeString;
+    currentTimeSelection: TimeRangeString | undefined;
+    storedTimescaleLayout: Layout[];
+    storedNonTimescaleLayout: Layout[];
 }
 
 export class TraceContextComponent extends React.Component<TraceContextProps, TraceContextState> {
@@ -71,8 +81,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private tooltipComponent: React.RefObject<TooltipComponent>;
     private tooltipXYComponent: React.RefObject<TooltipXYComponent>;
     private traceContextContainer: React.RefObject<HTMLDivElement>;
-    private _storedTimescaleLayout: Layout[] = [];
-    private _storedNonTimescaleLayout: Layout[] = [];
+    public _storedTimescaleLayout: Layout[];
+    public _storedNonTimescaleLayout: Layout[];
 
     protected widgetResizeHandlers: (() => void)[] = [];
     protected readonly addWidgetResizeHandler = (h: () => void): void => {
@@ -94,17 +104,40 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         super(props);
         let traceRange = new TimeRange(BigInt(0), BigInt(0));
         let viewRange = new TimeRange(BigInt(0), BigInt(0));
+        let timeSelection = undefined;
+        this._storedTimescaleLayout = [];
+        this._storedNonTimescaleLayout = [];
         if (this.props.experiment) {
             const experiment = this.props.experiment;
             traceRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
             viewRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
+        }
+        if (this.props.persistedState) {
+            const {
+                currentRange,
+                currentViewRange,
+                currentTimeSelection,
+                storedTimescaleLayout,
+                storedNonTimescaleLayout
+            } = this.props.persistedState;
+
+            traceRange = new TimeRange(BigInt(currentRange.start), BigInt(currentRange.end), BigInt(currentRange.offset ? currentRange.offset : currentRange.start));
+            viewRange = new TimeRange(BigInt(currentViewRange.start), BigInt(currentViewRange.end), BigInt(currentViewRange.offset ? currentViewRange.offset : currentViewRange.start));
+            timeSelection = undefined;
+            if (currentTimeSelection) {
+                timeSelection = new TimeRange(BigInt(currentTimeSelection.start), BigInt(currentTimeSelection.end), BigInt(currentTimeSelection.offset ? currentTimeSelection.offset : currentTimeSelection.start));currentTimeSelection
+            }
+            // storedTimescaleLayout.forEach(x => this._storedTimescaleLayout.push(x));
+            // storedNonTimescaleLayout.forEach(x => this._storedNonTimescaleLayout.push(x));
+            this._storedTimescaleLayout = storedTimescaleLayout;
+            this._storedNonTimescaleLayout = storedNonTimescaleLayout;
         }
         this.state = {
             timeOffset: this.props.experiment.start,
             shouldRenderOutputs: false,
             currentRange: traceRange,
             currentViewRange: viewRange,
-            currentTimeSelection: undefined,
+            currentTimeSelection: timeSelection,
             experiment: this.props.experiment,
             traceIndexing: ((this.props.experiment.indexingStatus === this.INDEXING_RUNNING_STATUS) || (this.props.experiment.indexingStatus === this.INDEXING_CLOSED_STATUS)),
             style: {
@@ -338,6 +371,10 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         }
     }
 
+    private onOutputRemoved(outputdId: string): void {
+        
+    }
+
     private renderOutputs() {
         this.generateGridLayout();
         const chartWidth = Math.max(0, this.state.style.width - this.state.style.chartOffset);
@@ -421,9 +458,22 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         </ResponsiveGridLayout>;
     }
 
+    get persistedState(): PersistedState {
+        const { currentRange, currentViewRange, currentTimeSelection } = this.state;
+        const { _storedNonTimescaleLayout: storedNonTimescaleLayout, _storedTimescaleLayout: storedTimescaleLayout } = this;
+        return {
+            outputs: this.props.outputs,
+            currentRange: currentRange.toString(),
+            currentViewRange: currentViewRange.toString(),
+            currentTimeSelection: currentTimeSelection?.toString(),
+            storedNonTimescaleLayout,
+            storedTimescaleLayout
+        }
+    }
+
     private renderPlaceHolder() {
-        this._storedTimescaleLayout = [];
-        this._storedNonTimescaleLayout = [];
+        // this._storedTimescaleLayout = [];
+        // this._storedNonTimescaleLayout = [];
         return <div className='no-output-placeholder'>
             {'Trace loaded successfully.'}
             <br />
