@@ -249,7 +249,7 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
 
     storeState(): PersistedState | undefined {
         /*
-        TODO - BigInt support for storing state
+        TODO - BigInt support for storing state in outputs/outputDescriptors
         JSON.stringify cannot serialize BigInt
         */
         if(this.traceContextComponent?.current){
@@ -261,11 +261,13 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
 
     restoreState(persistedState: PersistedState): void {
         /*
-        TODO - BigInt support for restoring state
+        TODO - BigInt support for restoring state in outputs/outputDescriptors
         Identify what values need to be BigInt and convert.
         */
-        this.persistedState = persistedState;
-        this.outputDescriptors = persistedState.outputs ? persistedState.outputs : [];
+        if(persistedState.outputs.length > 0) {
+            this.persistedState = persistedState;
+            this.outputDescriptors = persistedState.outputs ? persistedState.outputs : [];
+        }
     }
 
     private async fetchMarkerSets(expUUID: string) {
@@ -337,7 +339,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
     }
 
     protected async doHandleOutputAddedSignal(payload: OutputAddedSignalPayload): Promise<void> {
-        alert('output added');
         if (this.openedExperiment && payload.getExperiment().UUID === this.openedExperiment.UUID) {
             const exist = this.outputDescriptors.find(output => output.id === payload.getOutputDescriptor().id);
             if (!exist) {
@@ -367,7 +368,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
     }
 
     protected onOutputRemoved(outputId: string): void {
-        alert(outputId);
         const outputToKeep = this.outputDescriptors.filter(output => output.id !== outputId);
         this.outputDescriptors = outputToKeep;
         this.removeMarkerCategories(outputId);

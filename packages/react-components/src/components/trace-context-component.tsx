@@ -30,6 +30,10 @@ import { cloneDeep } from 'lodash';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+declare global {
+    interface Window { MyNamespace: any; }
+}
+
 interface TraceContextProps {
     tspClient: TspClient;
     experiment: Experiment;
@@ -62,6 +66,7 @@ export interface PersistedState {
     currentRange: TimeRangeString;
     currentViewRange: TimeRangeString;
     currentTimeSelection: TimeRangeString | undefined;
+    ucViewRange: { start: string, end: string };
     storedTimescaleLayout: Layout[];
     storedNonTimescaleLayout: Layout[];
 }
@@ -102,8 +107,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
 
     constructor(props: TraceContextProps) {
         super(props);
-        let traceRange = new TimeRange(BigInt(0), BigInt(0));
-        let viewRange = new TimeRange(BigInt(0), BigInt(0));
+        let traceRange = new TimeRange();
+        let viewRange = new TimeRange();
         let timeSelection = undefined;
         this._storedTimescaleLayout = [];
         this._storedNonTimescaleLayout = [];
@@ -111,27 +116,25 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             const experiment = this.props.experiment;
             traceRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
             viewRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
-        }
-        if (this.props.persistedState) {
-            const {
-                currentRange,
-                currentViewRange,
-                currentTimeSelection,
-                storedTimescaleLayout,
-                storedNonTimescaleLayout
-            } = this.props.persistedState;
+            if (this.props.persistedState) {
+                const {
+                    currentRange: storedRange,
+                    currentViewRange: storedViewRange,
+                    currentTimeSelection: storedTimeSelection,
+                    storedTimescaleLayout,
+                    storedNonTimescaleLayout
+                } = this.props.persistedState;
 
-            traceRange = new TimeRange(BigInt(currentRange.start), BigInt(currentRange.end), BigInt(currentRange.offset ? currentRange.offset : currentRange.start));
-            viewRange = new TimeRange(BigInt(currentViewRange.start), BigInt(currentViewRange.end), BigInt(currentViewRange.offset ? currentViewRange.offset : currentViewRange.start));
-            timeSelection = undefined;
-            if (currentTimeSelection) {
-                timeSelection = new TimeRange(BigInt(currentTimeSelection.start), BigInt(currentTimeSelection.end), BigInt(currentTimeSelection.offset ? currentTimeSelection.offset : currentTimeSelection.start));currentTimeSelection
+                traceRange = new TimeRange(storedRange);
+                viewRange = new TimeRange(storedViewRange);
+                if (storedTimeSelection) {
+                    timeSelection = new TimeRange(storedTimeSelection);
+                }
+                this._storedTimescaleLayout = storedTimescaleLayout;
+                this._storedNonTimescaleLayout = storedNonTimescaleLayout;
             }
-            // storedTimescaleLayout.forEach(x => this._storedTimescaleLayout.push(x));
-            // storedNonTimescaleLayout.forEach(x => this._storedNonTimescaleLayout.push(x));
-            this._storedTimescaleLayout = storedTimescaleLayout;
-            this._storedNonTimescaleLayout = storedNonTimescaleLayout;
         }
+        
         this.state = {
             timeOffset: this.props.experiment.start,
             shouldRenderOutputs: false,
@@ -153,6 +156,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             },
             backgroundTheme: this.props.backgroundTheme
         };
+        console.dir(this.state);
         const absoluteRange = traceRange.getDuration();
         this.unitController = new TimeGraphUnitController(absoluteRange, { start: BigInt(0), end: absoluteRange });
         this.unitController.numberTranslator = (theNumber: bigint) => {
@@ -193,8 +197,13 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private async initialize() {
         await this.updateTrace();
         this.unitController.absoluteRange = this.state.experiment.end - this.state.timeOffset;
-        this.unitController.viewRange = { start: BigInt(0), end: this.state.experiment.end - this.state.timeOffset };
         this.unitController.offset = this.state.timeOffset;
+        if (this.props.persistedState) {
+            let { start, end } = this.props.persistedState.ucViewRange;
+            this.unitController.viewRange = { start: BigInt(start), end: BigInt(end) };
+        } else {
+            this.unitController.viewRange = { start: BigInt(0), end: this.state.experiment.end - this.state.timeOffset };
+        }
     }
 
     private async updateTrace() {
@@ -204,15 +213,13 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 const tspClientResponse = await this.props.tspClient.fetchExperiment(this.props.experiment.UUID);
                 const updatedExperiment = tspClientResponse.getModel();
                 if (tspClientResponse.isOk() && updatedExperiment) {
-                    isIndexing = updatedExperiment.indexingStatus === this.INDEXING_RUNNING_STATUS;
+                    // Update status bar
                     this.setState({
-                        timeOffset: updatedExperiment.start,
+                        traceIndexing: updatedExperiment.indexingStatus === this.INDEXING_RUNNING_STATUS,
                         experiment: updatedExperiment,
-                        traceIndexing: isIndexing,
+                        timeOffset: updatedExperiment.start,
                         currentRange: new TimeRange(updatedExperiment.start - updatedExperiment.start, updatedExperiment.end - updatedExperiment.start, updatedExperiment.start)
                     });
-
-                    // Update status bar
                     this.props.messageManager.addStatusMessage(this.INDEXING_STATUS_BAR_KEY, {
                         text: `Indexing ${this.props.experiment.name}: ${this.state.experiment.nbEvents}`,
                         category: Messages.MessageCategory.SERVER_MESSAGE
@@ -461,10 +468,12 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     get persistedState(): PersistedState {
         const { currentRange, currentViewRange, currentTimeSelection } = this.state;
         const { _storedNonTimescaleLayout: storedNonTimescaleLayout, _storedTimescaleLayout: storedTimescaleLayout } = this;
+        const { start: ucStart, end: ucEnd } = this.unitController.viewRange;
         return {
             outputs: this.props.outputs,
             currentRange: currentRange.toString(),
             currentViewRange: currentViewRange.toString(),
+            ucViewRange: { start: ucStart.toString(), end: ucEnd.toString() },
             currentTimeSelection: currentTimeSelection?.toString(),
             storedNonTimescaleLayout,
             storedTimescaleLayout
@@ -472,8 +481,10 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     }
 
     private renderPlaceHolder() {
-        // this._storedTimescaleLayout = [];
-        // this._storedNonTimescaleLayout = [];
+        if(this.props.outputs.length === 0) {
+            this._storedTimescaleLayout = [];
+            this._storedNonTimescaleLayout = [];
+        }
         return <div className='no-output-placeholder'>
             {'Trace loaded successfully.'}
             <br />

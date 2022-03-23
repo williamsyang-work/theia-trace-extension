@@ -3,16 +3,40 @@ export class TimeRange {
     private end: bigint;
     private offset: bigint | undefined;
 
-    /**
-     * Constructor.
-     * @param start Range start time
-     * @param end Range end time
-     * @param offset Time offset, if this is defined the start and end time should be relative to this value
-     */
-    constructor(start: bigint, end: bigint, offset?: bigint) {
-        this.start = start;
-        this.end = end;
-        this.offset = offset;
+    constructor();
+    constructor(timeRangeString: TimeRangeString);
+    constructor(start: bigint, end: bigint, offset?: bigint);
+    constructor(...params: any[]) {
+        if (params.length > 1) {
+            /**
+             * Constructor.
+             * @param start Range start time
+             * @param end Range end time
+             * @param offset Time offset, if this is defined the start and end time should be relative to this value
+             */
+            const [start, end, offset] = params;
+            this.start = start;
+            this.end = end;
+            this.offset = offset;
+        } else if(params.length === 1) {
+            /**
+             * Constructor.
+             * @param timeRangeString string object returned by this.toString()
+             */
+            const [timeRangeString] = params;
+            const { start, end, offset } = timeRangeString;
+            this.start = BigInt(start);
+            this.end = BigInt(end);
+            this.offset = offset ? BigInt(offset) : undefined;
+        } else {
+            /**
+             * Constructor.
+             * Default TimeRange with 0 for values
+             */
+            this.start = BigInt(0);
+            this.end = BigInt(0);
+            this.offset = undefined;
+        }
     }
 
 
