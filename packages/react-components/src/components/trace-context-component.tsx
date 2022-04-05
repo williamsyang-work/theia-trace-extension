@@ -156,7 +156,6 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             },
             backgroundTheme: this.props.backgroundTheme
         };
-        console.dir(this.state);
         const absoluteRange = traceRange.getDuration();
         this.unitController = new TimeGraphUnitController(absoluteRange, { start: BigInt(0), end: absoluteRange });
         this.unitController.numberTranslator = (theNumber: bigint) => {
@@ -169,6 +168,10 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             const nanos = zeroPad(theNumber % BigInt(1000));
             return seconds + '.' + millis + ' ' + micros + ' ' + nanos;
         };
+        if (this.props.persistedState?.currentTimeSelection) {
+            const { start, end } = this.props.persistedState.currentTimeSelection;
+            this.unitController.selectionRange = { start: BigInt(start), end: BigInt(end) };
+        }
         this.unitController.onSelectionRangeChange(range => { this.handleTimeSelectionChange(range); });
         this.unitController.onViewRangeChanged(viewRangeParam => { this.handleViewRangeChange(viewRangeParam); });
         this.tooltipComponent = React.createRef();
