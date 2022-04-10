@@ -27,6 +27,7 @@ import { TooltipXYComponent } from './tooltip-xy-component';
 import { BIMath } from 'timeline-chart/lib/bigint-utils';
 import { DataTreeOutputComponent } from './datatree-output-component';
 import { cloneDeep } from 'lodash';
+import { HistoryItem, UnitControllerHistoryHandler } from './utils/unit-controller-history-handler';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -78,6 +79,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private readonly DEFAULT_CHART_OFFSET = 200;
 
     private unitController: TimeGraphUnitController;
+    private history: UnitControllerHistoryHandler;
     private tooltipComponent: React.RefObject<TooltipComponent>;
     private tooltipXYComponent: React.RefObject<TooltipXYComponent>;
     private traceContextContainer: React.RefObject<HTMLDivElement>;
@@ -158,6 +160,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             const nanos = zeroPad(theNumber % BigInt(1000));
             return seconds + '.' + millis + ' ' + micros + ' ' + nanos;
         };
+        this.history = new UnitControllerHistoryHandler(this.unitController);
         if (this.props.persistedState?.currentTimeSelection) {
             const { start, end } = this.props.persistedState.currentTimeSelection;
             this.unitController.selectionRange = { start: BigInt(start), end: BigInt(end) };
@@ -197,6 +200,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         } else {
             this.unitController.viewRange = { start: BigInt(0), end: this.state.experiment.end - this.state.timeOffset };
         }
+        this.history.clear();
+        this.history.addCurrentState();
     }
 
     private async updateTrace() {
@@ -247,12 +252,16 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().on(Signals.THEME_CHANGED, this.onBackgroundThemeChange);
         signalManager().on(Signals.UPDATE_ZOOM, this.onUpdateZoom);
         signalManager().on(Signals.RESET_ZOOM, this.onResetZoom);
+        signalManager().on(Signals.UNDO, this.undo);
+        signalManager().on(Signals.REDO, this.redo);
     }
 
     private unsubscribeToEvents() {
         signalManager().off(Signals.THEME_CHANGED, this.onBackgroundThemeChange);
         signalManager().off(Signals.UPDATE_ZOOM, this.onUpdateZoom);
         signalManager().off(Signals.RESET_ZOOM, this.onResetZoom);
+        signalManager().off(Signals.UNDO, this.undo);
+        signalManager().off(Signals.REDO, this.redo);
     }
 
     async componentDidUpdate(prevProps: TraceContextProps): Promise<void> {
@@ -318,14 +327,14 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             });
             this.setState(prevState => ({
                 currentTimeSelection: new TimeRange(range.start, range.end, prevState.timeOffset)
-            }));
+            }), () => this.updateHistory());
         }
     }
 
     private handleViewRangeChange(viewRange: TimelineChart.TimeGraphRange) {
         this.setState(prevState => ({
             currentViewRange: new TimeRange(viewRange.start, viewRange.end, prevState.timeOffset)
-        }));
+        }), () => this.updateHistory());
     }
 
     private onContextMenu(event: React.MouseEvent) {
@@ -365,6 +374,18 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             case '-':
             case '_': {
                 this.zoomButton(false);
+                break;
+            }
+            case 'z': {
+                if (key.ctrlKey) {
+                    this.undo();
+                }
+                break;
+            }
+            case 'y': {
+                if (key.ctrlKey) {
+                    this.redo();
+                }
                 break;
             }
         }
@@ -478,6 +499,18 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             <br />
             {'To see available views, open the Trace Viewer.'}
         </div>;
+    }
+
+    private undo = (): void => {
+        this.history.undo();
+    }
+
+    private redo = (): void => {
+        this.history.redo();
+    }
+
+    private updateHistory(): void {
+        this.history.addCurrentState();
     }
 
     private generateGridLayout(): void {

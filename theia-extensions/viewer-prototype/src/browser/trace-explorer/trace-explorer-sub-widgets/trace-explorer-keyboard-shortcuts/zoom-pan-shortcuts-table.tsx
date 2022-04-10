@@ -59,6 +59,20 @@ export class ZoomPanShortcutsTable extends React.Component {
                     <table>
                         <tbody>
                             <tr>
+                                <td><i className='fa fa-undo fa-lg' /> Undo</td>
+                                <td className='monaco-keybinding shortcuts-table-keybinding'>
+                                    <span className='monaco-keybinding-key'>CTRL</span>
+                                    <span className='monaco-keybinding-key'>Z</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i className='fa fa-repeat fa-lg' /> Redo</td>
+                                <td className='monaco-keybinding shortcuts-table-keybinding'>
+                                    <span className='monaco-keybinding-key'>CTRL</span>
+                                    <span className='monaco-keybinding-key'>Y</span>
+                                </td>
+                            </tr>
+                            <tr>
                                 <td>Zoom to selected range</td>
                                 <td className='monaco-keybinding shortcuts-table-keybinding'>
                                     <span className='monaco-keybinding-key'>Right-Click</span>
