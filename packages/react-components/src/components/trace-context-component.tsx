@@ -265,6 +265,10 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    RENAME_ME() {
+        alert('hi :)');
+    }
+
     componentDidMount(): void {
         this.onResize();
     }
@@ -284,6 +288,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().on(Signals.REDO, this.redoHistory);
         signalManager().on(Signals.PIN_VIEW, this.onPinView);
         signalManager().on(Signals.UNPIN_VIEW, this.onUnPinView);
+        signalManager().on(Signals.CUSTOM_ZOOM, this.RENAME_ME);
     }
 
     private unsubscribeToEvents() {
@@ -294,6 +299,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().off(Signals.REDO, this.redoHistory);
         signalManager().off(Signals.PIN_VIEW, this.onPinView);
         signalManager().off(Signals.UNPIN_VIEW, this.onUnPinView);
+        signalManager().on(Signals.CUSTOM_ZOOM, this.RENAME_ME);
     }
 
     async componentDidUpdate(prevProps: TraceContextProps, prevState: TraceContextState): Promise<void> {

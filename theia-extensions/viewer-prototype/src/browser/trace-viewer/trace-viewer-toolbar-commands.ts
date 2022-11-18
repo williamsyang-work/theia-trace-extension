@@ -13,6 +13,12 @@ export namespace TraceViewerToolbarCommands {
         iconClass: 'fa fa-minus-square-o fa-lg',
     };
 
+    export const CUSTOM_ZOOM: Command = {
+        id: 'trace.viewer.toolbar.zoom',
+        label: 'Zoom To Time',
+        iconClass: 'fa fa-search fa-lg',
+    }
+
     export const UNDO: Command = {
         id: 'trace.viewer.toolbar.undo',
         label: 'Undo',

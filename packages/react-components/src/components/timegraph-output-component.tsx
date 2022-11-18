@@ -174,6 +174,10 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
         });
     }
 
+    onClick() {
+
+    }
+
     synchronizeTreeScroll(): void {
         if (this.timeGraphTreeRef.current) {
             this.rowController.verticalOffset = this.timeGraphTreeRef.current.scrollTop;

@@ -336,7 +336,8 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
         this.onOverviewRemoved = this.onOverviewRemoved.bind(this);
 
         return <div className='trace-viewer-container'>
-            {this.openedExperiment ? <TraceContextComponent experiment={this.openedExperiment}
+            {this.openedExperiment ? <TraceContextComponent
+                experiment={this.openedExperiment}
                 ref={this.traceContextComponent}
                 tspClient={this.tspClient}
                 outputs={this.outputDescriptors}

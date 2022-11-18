@@ -59,6 +59,19 @@ export class TraceViewerToolbarContribution implements TabBarToolbarContribution
         });
 
         registry.registerCommand(
+            TraceViewerToolbarCommands.CUSTOM_ZOOM, {
+            isVisible: (widget: Widget) => {
+                if (widget instanceof TraceViewerWidget) {
+                    return widget.isTimeRelatedChartOpened() || widget.isTraceOverviewOpened();
+                }
+                return false;
+            },
+            execute: () => {
+                signalManager().fireCustomZoomSignal();
+            }
+        });
+
+        registry.registerCommand(
             TraceViewerToolbarCommands.ZOOM_IN, {
             isVisible: (widget: Widget) => {
                 if (widget instanceof TraceViewerWidget) {
@@ -161,22 +174,28 @@ export class TraceViewerToolbarContribution implements TabBarToolbarContribution
             priority: 2,
         });
         registry.registerItem({
+            id: TraceViewerToolbarCommands.CUSTOM_ZOOM.id,
+            command: TraceViewerToolbarCommands.CUSTOM_ZOOM.id,
+            tooltip: TraceViewerToolbarCommands.CUSTOM_ZOOM.label,
+            priority: 3,
+        })
+        registry.registerItem({
             id: TraceViewerToolbarCommands.ZOOM_IN.id,
             command: TraceViewerToolbarCommands.ZOOM_IN.id,
             tooltip: TraceViewerToolbarCommands.ZOOM_IN.label,
-            priority: 3,
+            priority: 4,
         });
         registry.registerItem({
             id: TraceViewerToolbarCommands.ZOOM_OUT.id,
             command: TraceViewerToolbarCommands.ZOOM_OUT.id,
             tooltip: TraceViewerToolbarCommands.ZOOM_OUT.label,
-            priority: 4,
+            priority: 5,
         });
         registry.registerItem({
             id: TraceViewerToolbarCommands.RESET.id,
             command: TraceViewerToolbarCommands.RESET.id,
             tooltip: TraceViewerToolbarCommands.RESET.label,
-            priority: 5,
+            priority: 6,
         });
         registry.registerItem({
             id: TraceViewerToolbarCommands.FILTER.id,
@@ -246,7 +265,7 @@ export class TraceViewerToolbarContribution implements TabBarToolbarContribution
                     });
                 }}></div>
             </div>,
-            priority: 6,
+            priority: 7,
             group: 'navigation',
             onDidChange: this.onMarkerCategoriesChangedEvent,
         });
@@ -294,7 +313,7 @@ export class TraceViewerToolbarContribution implements TabBarToolbarContribution
                     });
                 }}></div>
             </div>,
-            priority: 7,
+            priority: 8,
             group: 'navigation',
             onDidChange: this.onMakerSetsChangedEvent,
         });
@@ -302,19 +321,19 @@ export class TraceViewerToolbarContribution implements TabBarToolbarContribution
             id: TraceViewerToolbarCommands.OPEN_TRACE.id,
             command: TraceViewerToolbarCommands.OPEN_TRACE.id,
             tooltip: TraceViewerToolbarCommands.OPEN_TRACE.label,
-            priority: 8,
+            priority: 9,
         });
         registry.registerItem({
             id: TraceViewerToolbarCommands.OPEN_OVERVIEW_OUTPUT.id,
             command: TraceViewerToolbarCommands.OPEN_OVERVIEW_OUTPUT.id,
             tooltip: TraceViewerToolbarCommands.OPEN_OVERVIEW_OUTPUT.label,
-            priority: 9,
+            priority: 10,
         });
         registry.registerItem({
             id: TraceViewerToolbarCommands.CHARTS_CHEATSHEET.id,
             command: TraceViewerToolbarCommands.CHARTS_CHEATSHEET.id,
             tooltip: TraceViewerToolbarCommands.CHARTS_CHEATSHEET.label,
-            priority: 10,
+            priority: 11,
         });
     }
 }

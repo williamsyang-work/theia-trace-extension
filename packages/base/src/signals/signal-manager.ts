@@ -24,6 +24,7 @@ export declare interface SignalManager {
     fireMarkerSetsFetchedSignal(): void;
     fireMarkerCategoryClosedSignal(payload: { traceViewerId: string, markerCategory: string }): void;
     fireTraceServerStartedSignal(): void;
+    fireCustomZoomSignal(): void;
     fireUndoSignal(): void;
     fireRedoSignal(): void;
     fireOpenOverviewOutputSignal(traceId: string): void;
@@ -49,6 +50,7 @@ export const Signals = {
     SELECTION_CHANGED: 'selection changed',
     CLOSE_TRACEVIEWERTAB: 'tab closed',
     TRACEVIEWERTAB_ACTIVATED: 'widget activated',
+    CUSTOM_ZOOM: 'custom zoom',
     UPDATE_ZOOM: 'update zoom',
     RESET_ZOOM: 'reset zoom',
     UNDO: 'undo',
@@ -102,6 +104,9 @@ export class SignalManager extends EventEmitter implements SignalManager {
     }
     fireTraceViewerTabActivatedSignal(experiment: Experiment): void {
         this.emit(Signals.TRACEVIEWERTAB_ACTIVATED, experiment);
+    }
+    fireCustomZoomSignal(): void {
+        this.emit(Signals.CUSTOM_ZOOM);
     }
     fireUpdateZoomSignal(hasZoomedIn: boolean): void {
         this.emit(Signals.UPDATE_ZOOM, hasZoomedIn);
