@@ -29,6 +29,7 @@ import { DataTreeOutputComponent } from './datatree-output-component';
 import { cloneDeep } from 'lodash';
 import { UnitControllerHistoryHandler } from './utils/unit-controller-history-handler';
 import { TraceOverviewComponent } from './trace-overview-component';
+import { NavigationComponent } from './navigation-component';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -133,6 +134,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             traceRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
             viewRange = new TimeRange(experiment.start - this.props.experiment.start, experiment.end - this.props.experiment.start, this.props.experiment.start);
             if (this.props.persistedState) {
+                console.dir(this.props.persistedState);
                 const {
                     currentRange: storedRange,
                     currentViewRange: storedViewRange,
@@ -401,6 +403,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     }
 
     private onLayoutChange(currentLayout: Layout[]): void {
+        console.dir(currentLayout);
         if (currentLayout.length > 0) {
             const curLayoutCopy = cloneDeep(currentLayout);
             if (this._storedPinnedViewLayout && this._storedPinnedViewLayout.i === currentLayout[0].i) {
@@ -505,6 +508,27 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 // Margin required to have the close button clickable, else overlapped by the tooltip container
                 <div style={{marginTop: '30px'}}>
                     {this.renderGridLayout([this.props.overviewDescriptor] , [this._storedOverviewLayout], true)}
+                    {this.renderGridLayout(
+                        [
+                            {
+                                id: "search.idk",
+                                name: "Times",
+                                description: "Modify times w/ numbers",
+                                type: "CUSTOM_SEARCH"
+                            }
+                        ], 
+                        [
+                            {
+                                w: 1,
+                                h: 5,
+                                x: 0,
+                                y: 0,
+                                i: "search.idk",
+                                moved: false,
+                                static: false
+                              }
+                        ]
+                    )}
                 </div>
             }
             {this.state.pinnedView !== undefined && this._storedPinnedViewLayout !== undefined &&
@@ -553,7 +577,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
 
     private renderGridLayout(outputs: OutputDescriptor[], layout: Layout[], isOverview?: boolean) {
         const rowHeight = isOverview ? this.DEFAULT_OVERVIEW_ROWHEIGHT : this.DEFAULT_COMPONENT_ROWHEIGHT;
-        return <ResponsiveGridLayout margin={[0, 5]} isResizable={true} isDraggable={true} resizeHandles={['se', 's', 'sw']}
+        return <ResponsiveGridLayout margin={[0, 5]} isResizable={true} isDraggable={!isOverview} resizeHandles={['se', 's', 'sw']}
         onLayoutChange={this.onLayoutChange} layouts={{ lg: layout }} cols={{ lg: 1 }} breakpoints={{ lg: 1200 }}
         rowHeight={rowHeight}
         draggableHandle={'.title-bar-label'}>
@@ -614,6 +638,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                         return <TableOutputComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                     case 'DATA_TREE':
                         return <DataTreeOutputComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
+                    case 'CUSTOM_SEARCH':
+                        return <NavigationComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                     default:
                         return <NullOutputComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                 }

@@ -13,9 +13,12 @@
     "style"
   ],
   "dependencies": {
+    "@emotion/react": "^11.10.5",
+    "@emotion/styled": "^11.10.5",
     "@fortawesome/fontawesome-svg-core": "^1.2.17",
     "@fortawesome/free-solid-svg-icons": "^5.8.1",
     "@fortawesome/react-fontawesome": "^0.1.4",
+    "@mui/material": "^5.10.15",
     "@vscode/codicons": "^0.0.29",
     "ag-grid-community": "^28.2.0",
     "ag-grid-react": "^28.2.0",

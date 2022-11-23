@@ -57,6 +57,14 @@ export class XYOutputOverviewComponent extends AbstractXYOutputComponent<XYoutpu
         this.closeOverviewOutputSelector = this.closeOverviewOutputSelector.bind(this);
     }
 
+    renderTimeSelection(): React.ReactNode {
+        return (
+            <div>
+                Hi :)
+            </div>
+        )
+    }
+
     renderChart(): React.ReactNode {
         if (this.state.outputStatus === ResponseStatus.COMPLETED && this.state.xyData?.datasets?.length === 0) {
             return <React.Fragment>
@@ -82,6 +90,7 @@ export class XYOutputOverviewComponent extends AbstractXYOutputComponent<XYoutpu
                     ref={this.divRef}
                 >
                     {this.chooseChart()}
+                    {this.renderTimeSelection()}
                 </div> :
                 <div
                     id={this.getOutputComponentDomId() + 'focusContainer'}
