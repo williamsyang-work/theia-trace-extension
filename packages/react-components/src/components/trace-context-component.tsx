@@ -60,6 +60,7 @@ export interface TraceContextState {
     style: OutputComponentStyle;
     backgroundTheme: string;
     pinnedView: OutputDescriptor | undefined;
+    timeNavigationOpen: boolean;
 }
 
 export interface PersistedState {
@@ -177,6 +178,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 lineColor: this.props.backgroundTheme === 'light' ? 0x757575 : 0xbbbbbb
             },
             backgroundTheme: this.props.backgroundTheme,
+            timeNavigationOpen: true,
         };
         const absoluteRange = traceRange.getDuration();
         this.unitController = new TimeGraphUnitController(absoluteRange, { start: BigInt(0), end: absoluteRange });
@@ -267,7 +269,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    RENAME_ME() {
+    togg() {
         alert('hi :)');
     }
 
@@ -290,7 +292,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().on(Signals.REDO, this.redoHistory);
         signalManager().on(Signals.PIN_VIEW, this.onPinView);
         signalManager().on(Signals.UNPIN_VIEW, this.onUnPinView);
-        signalManager().on(Signals.CUSTOM_ZOOM, this.RENAME_ME);
+        signalManager().on(Signals.CUSTOM_ZOOM, () => this.setTimeNavigationOpen());
     }
 
     private unsubscribeToEvents() {
@@ -301,7 +303,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().off(Signals.REDO, this.redoHistory);
         signalManager().off(Signals.PIN_VIEW, this.onPinView);
         signalManager().off(Signals.UNPIN_VIEW, this.onUnPinView);
-        signalManager().on(Signals.CUSTOM_ZOOM, this.RENAME_ME);
+        signalManager().on(Signals.CUSTOM_ZOOM, () => this.setTimeNavigationOpen());
     }
 
     async componentDidUpdate(prevProps: TraceContextProps, prevState: TraceContextState): Promise<void> {
@@ -399,7 +401,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     }
 
     private onContextMenu(event: React.MouseEvent) {
-        event.preventDefault();
+        // event.preventDefault();
     }
 
     private onLayoutChange(currentLayout: Layout[]): void {
@@ -504,10 +506,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 // https://github.com/STRML/react-grid-layout/issues/299#issuecomment-524959229
             }
             {
-                this.props.overviewDescriptor && this._storedOverviewLayout &&
-                // Margin required to have the close button clickable, else overlapped by the tooltip container
-                <div style={{marginTop: '30px'}}>
-                    {this.renderGridLayout([this.props.overviewDescriptor] , [this._storedOverviewLayout], true)}
+                this.state.timeNavigationOpen &&
+                <>
                     {this.renderGridLayout(
                         [
                             {
@@ -529,6 +529,14 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                               }
                         ]
                     )}
+                </>
+            }
+            {
+                this.props.overviewDescriptor && this._storedOverviewLayout &&
+                // Margin required to have the close button clickable, else overlapped by the tooltip container
+                <div style={{marginTop: '30px'}}>
+                    {this.renderGridLayout([this.props.overviewDescriptor] , [this._storedOverviewLayout], true)}
+                    
                 </div>
             }
             {this.state.pinnedView !== undefined && this._storedPinnedViewLayout !== undefined &&
@@ -639,7 +647,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                     case 'DATA_TREE':
                         return <DataTreeOutputComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                     case 'CUSTOM_SEARCH':
-                        return <NavigationComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
+                        return <NavigationComponent key={output.id} setTimeNavigationOpen={this.setTimeNavigationOpen} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                     default:
                         return <NullOutputComponent key={output.id} {...outputProps} className={this.state.pinnedView?.id === output.id ? 'pinned-view-shadow' : ''}/>;
                 }
@@ -667,6 +675,11 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             storedOverviewOutput: this.props.overviewDescriptor,
             storedOverviewLayout: storedOverviewLayout
         };
+    }
+
+    private setTimeNavigationOpen = (val?: boolean) => {
+        let timeNavigationOpen = val ? val : !this.state.timeNavigationOpen;
+        this.setState({ timeNavigationOpen });
     }
 
     private renderPlaceHolder() {

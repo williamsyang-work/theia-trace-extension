@@ -58,7 +58,7 @@
     padding: 2px 8px;
     align-self: center;
     justify-self: center;
-    color: var(--theia-ui-font-color0)
+    color: var(--theia-ui-font-color0);
 }
 .title-bar-label:hover {
     background-color: var(--theia-list-hoverBackground); 

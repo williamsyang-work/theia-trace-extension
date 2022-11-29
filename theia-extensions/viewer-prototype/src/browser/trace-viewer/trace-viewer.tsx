@@ -138,10 +138,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
 
     protected readonly toDisposeOnNewExplorer = new DisposableCollection();
 
-    protected customZoom(): void {
-        alert('clickity click :)');
-    }
-
     protected subscribeToEvents(): void {
         this.toDisposeOnNewExplorer.dispose();
         signalManager().on(Signals.OUTPUT_ADDED, this.onOutputAdded);
@@ -150,7 +146,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
         signalManager().on(Signals.MARKER_CATEGORY_CLOSED, this.onMarkerCategoryClosedSignal);
         signalManager().on(Signals.OPEN_OVERVIEW_OUTPUT, this.onTraceOverviewOpened);
         signalManager().on(Signals.OVERVIEW_OUTPUT_SELECTED, this.onTraceOverviewOutputSelected);
-        signalManager().on(Signals.CUSTOM_ZOOM, this.customZoom);
     }
 
     protected updateBackgroundTheme(): void {
@@ -165,7 +160,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
         signalManager().off(Signals.CLOSE_TRACEVIEWERTAB, this.onCloseExperiment);
         signalManager().off(Signals.OPEN_OVERVIEW_OUTPUT, this.onTraceOverviewOpened);
         signalManager().off(Signals.OVERVIEW_OUTPUT_SELECTED, this.onTraceOverviewOutputSelected);
-        signalManager().off(Signals.CUSTOM_ZOOM, this.customZoom);
     }
 
     async initialize(): Promise<void> {
