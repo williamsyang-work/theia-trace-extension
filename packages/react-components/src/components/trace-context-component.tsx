@@ -717,6 +717,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         });
     }
 
+    // Use this to make TimestampNavigation not resizeable!
     private generateGridLayout(): void {
         let existingTimeScaleLayouts: Array<Layout> = [];
         let existingNonTimeScaleLayouts: Array<Layout> = [];

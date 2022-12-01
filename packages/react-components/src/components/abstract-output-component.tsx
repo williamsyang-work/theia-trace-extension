@@ -132,7 +132,7 @@ export abstract class AbstractOutputComponent<P extends AbstractOutputProps, S e
         </React.Fragment>;
     }
 
-    private closeComponent() {
+    protected closeComponent() {
         if (this.props.pinned) {
             signalManager().fireUnPinView(this.props.outputDescriptor);
         }

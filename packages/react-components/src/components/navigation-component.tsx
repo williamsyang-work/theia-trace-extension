@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbstractOutputProps, AbstractOutputComponent, AbstractOutputState } from './abstract-output-component';
 import { ResponseStatus } from 'tsp-typescript-client/lib/models/response/responses';
+import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
 
 
 export type NavigationComponentProps = AbstractOutputProps & {
@@ -8,170 +9,205 @@ export type NavigationComponentProps = AbstractOutputProps & {
 }
 
 type NavigationComponentState = AbstractOutputState & {
-    viewRangeStart: string;
-    viewRangeEnd: string;
-    selectionRangeStart: string | null;
-    selectionRangeEnd: string | null;
+    selectionRangeStart: bigint | null;
+    selectionRangeEnd: bigint | null;
+    navigating: boolean;
+    invalidInput: boolean;
+    errorMessage: string;
 }
 
 export class NavigationComponent extends AbstractOutputComponent<NavigationComponentProps, NavigationComponentState> {
 
+    private unitController: TimeGraphUnitController;
+
     constructor(props: NavigationComponentProps) {
         super(props);
-        const { viewRange, selectionRange } = this.props.unitController
+        this.unitController = this.props.unitController;
+
         this.state = {
             outputStatus: ResponseStatus.COMPLETED,
-            viewRangeStart: viewRange.start.toString(),
-            viewRangeEnd: viewRange.end.toString(),
-            selectionRangeStart: selectionRange?.start.toString() ?? null,
-            selectionRangeEnd: selectionRange?.end.toString() ?? null
+            selectionRangeStart: this.props.selectionRange?.getStart() ?? null,
+            selectionRangeEnd: this.props.selectionRange?.getEnd() ?? null,
+            navigating: false,
+            invalidInput: false,
+            errorMessage: '',
         };
 
-        this.props.unitController.onViewRangeChanged(this.onViewRangeChange);
-        this.props.unitController.onSelectionRangeChange(this.onSelectionRangeChange);
-
-    }
-
-    onViewRangeChange = () => {
-        this.setState({
-            viewRangeStart: this.props.unitController.viewRange.start.toString(),
-            viewRangeEnd: this.props.unitController.viewRange.end.toString(),
-        })
+        this.unitController.onSelectionRangeChange(this.onSelectionRangeChange);
     }
 
     onSelectionRangeChange = () => {
+        const { selectionRange, offset } = this.unitController;
+
+        if (!selectionRange) {
+            alert('on undefined selection range change');
+            this.setState({
+                selectionRangeStart: null,
+                selectionRangeEnd: null,
+                navigating: false,
+            })
+            return;
+        }
+
+        let start = selectionRange.start + offset;
+        let end = selectionRange.end + offset;
+        let [readableStart, readableEnd] = this.makeValuesHumanReadable(start, end);
+        
         this.setState({
-            selectionRangeStart: this.props.unitController.selectionRange?.start.toString() ?? null,
-            selectionRangeEnd: this.props.unitController.selectionRange?.end.toString() ?? null,
-        })
+            selectionRangeStart: readableStart,
+            selectionRangeEnd: readableEnd,
+            navigating: false
+        });
     }
 
-    handleInputChange = (e: React.FormEvent<HTMLInputElement>, key: string) => {
+    handleInputChange = (e: React.FormEvent<HTMLInputElement>) => {
 
-        const value = e.currentTarget.value;
-        const valid = this.isValueValid(value);
+        const value = e.currentTarget.value === '' ? null : BigInt(e.currentTarget.value);
+        const key = e.currentTarget.id;
 
-        let { viewRange, selectionRange } = this.props.unitController
-
-        switch(key) {
-            case 'viewRangeStart':
-                valid ? this.props.unitController.viewRange = { ...viewRange, start: BigInt(value) } : this.setState({ viewRangeStart: value });
-                break;
-            case 'viewRangeEnd':
-                valid ? this.props.unitController.viewRange = { ...viewRange, end: BigInt(value) } : this.setState({ viewRangeEnd: value });
-                break;
+        switch (key) {
             case 'selectionRangeStart':
-                if (valid) {
-                    const end = selectionRange?.end ?? BigInt(value);
-                    this.props.unitController.selectionRange = { end, start: BigInt(value) };
-                } else {
-                    this.setState({ selectionRangeEnd: value });
-                }
+                this.setState({ selectionRangeStart: value, navigating: true }, () => console.dir(this.state));
                 break;
             case 'selectionRangeEnd':
-                if (valid) {
-                    const start = selectionRange?.start ?? BigInt(value);
-                    this.props.unitController.selectionRange = { start, end: BigInt(value) };
-                } else {
-                    this.setState({ selectionRangeEnd: value });
-                }
+                this.setState({ selectionRangeEnd: value, navigating: true }, () => console.dir(this.state));
                 break;
             default:
-                throw "Key does not exist in TimeNavigationComponentState";
+                throw 'Key does not exist in TimeNavigationState';
         }
     }
 
-    isValueValid = (input: bigint | string) => {
-        let val = BigInt(input);
-        const min = BigInt(0);
-        const max = this.props.unitController.absoluteRange + BigInt(1);  // Max wasn't valid for some reason.
-        return (val >= min) && (val <= max);
+    handleSubmit = (e: React.SyntheticEvent) => {
+        e.preventDefault();
+        let { selectionRangeStart, selectionRangeEnd } = this.state;
+        const isValid = (n: bigint) => (n >= this.unitController.offset) && (n <= (this.unitController.offset + this.unitController.absoluteRange));
+
+        if (selectionRangeStart === null && selectionRangeEnd === null) {
+            this.unitController.selectionRange = undefined;
+            return;
+        }
+
+        if (selectionRangeStart === null || selectionRangeEnd === null) {
+            // If only one value is defined, make it the value for both.
+            let number = selectionRangeStart ? selectionRangeStart : selectionRangeEnd;
+            selectionRangeStart = selectionRangeEnd = number;
+        }
+
+        if (typeof selectionRangeStart !== 'bigint' || typeof selectionRangeEnd !== 'bigint') {
+            return;  // Need to be explicit because of compiler errors.
+        }
+
+        const startValid = isValid(selectionRangeStart);
+        const endValid = isValid(selectionRangeEnd);
+
+        console.dir({ selectionRangeStart, selectionRangeEnd, startValid, endValid });
+
+        if (startValid && endValid) {
+            this.unitController.selectionRange = {
+                start: selectionRangeStart + this.unitController.offset,
+                end: selectionRangeEnd + this.unitController.offset
+            }
+            return;
+        } else {
+            alert('Please check your inputs :)');
+        }
+    }
+
+
+    makeValuesHumanReadable = (selectionRangeStart: bigint , selectionRangeEnd: bigint) => {
+
+        const { selectionRange } = this.unitController;
+        let start = selectionRangeStart;
+        let end: bigint | null = selectionRangeEnd;
+
+        if (selectionRangeStart === selectionRangeEnd) {
+            // Only show one value if selection range is a single value.
+            end = null;
+        } else if (selectionRange && selectionRange.start > selectionRange.end) {
+            // Start is always less than end.
+            start = selectionRangeEnd;
+            end = selectionRangeStart;
+        }
+
+        return [start, end];
+    }
+
+    onlyLetUsersTypeNumbers = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const isNumber = /[0-9]/.test(e.key);
+        if (!isNumber) {
+            e.preventDefault();
+        }
     }
 
     renderMainArea = () => {
-        const { unitController, setTimeNavigationOpen } = this.props;
-        const { viewRange, selectionRange } = unitController;
-        const leftPanelWidth = this.props.style.handleWidth ?? 30;
-
-        const widgetStyle = {
-            width: leftPanelWidth,
-        }
-
-        const mainContentStyle = {
-            paddingTop: '6px',
-            // paddingLeft: '5px',
-        }
 
         const {
-            viewRangeStart,
-            viewRangeEnd,
             selectionRangeStart,
             selectionRangeEnd
         } = this.state;
 
+        const { viewRange, offset } = this.unitController;
+        const viewRangeStart = (viewRange.start + offset).toString();
+        const viewRangeEnd = (viewRange.end + offset).toString();
+
         return (
-            <div className="nav-main-content" id="NAV-MAIN-COMPONENT" style={mainContentStyle}>
-                <div className="section">
-                    <div className="title">
+            <div className='nav-main-content' id='NAV-MAIN-COMPONENT'>
+                <div className='section'>
+                    <div className='title'>
                         <b>View Range</b>
                     </div>
-                    <div className="input">
+                    <div className='input'>
                         <span>Start : </span>
-                        <input
-                            type="number"
-                            value={viewRangeStart}
-                            onChange={(e) => this.handleInputChange(e, 'viewRangeStart')}
-                            style={{
-                                color: this.isValueValid(viewRangeStart) ? 'black' : 'red',
-                            }}
-                        />
+                        <span>{viewRangeStart}</span>
                     </div>
-                    <div className="input">
+                    <div className='input'>
                         <span>End : </span>
-                        <input
-                            type="number"
-                            value={viewRangeEnd}
-                            onChange={(e) => this.handleInputChange(e, 'viewRangeEnd')}
-                            style={{
-                                color: this.isValueValid(viewRangeEnd) ? 'black' : 'red',
-                            }}
-                        />
+                        <span>{viewRangeEnd}</span>
                     </div>
                 </div>
-                <div className="section">
-                    <div className="title">
+                <form className='section' onSubmit={this.handleSubmit}>
+                    <div className='title'>
                         <b>Selection Range</b>
                     </div>
-                    <div className="input">
+                    <div className='input'>
                         <span>Start : </span>
                         <input
-                            type="number"
-                            value={selectionRangeStart ?? ''}
-                            onChange={(e) => this.handleInputChange(e, 'selectionRangeStart')}
-                            style={{
-                                color: this.isValueValid(selectionRangeStart ?? '') ? 'black' : 'red',
-                            }}
+                            type='number'
+                            id='selectionRangeStart'
+                            value={selectionRangeStart !== null ? selectionRangeStart.toString() : ''}
+                            onChange={this.handleInputChange}
+                            onKeyPress={this.onlyLetUsersTypeNumbers}
                         />
                     </div>
-                    <div className="input">
+                    <div className='input'>
                         <span>End : </span>
                         <input
-                            type="number"
-                            value={selectionRangeEnd ?? ''}
-                            onChange={(e) => this.handleInputChange(e, 'selectionRangeEnd')}
-                            style={{
-                                color: this.isValueValid(selectionRangeEnd ?? '') ? 'black' : 'red',
-                            }}
+                            type='number'
+                            id='selectionRangeEnd'
+                            value={selectionRangeEnd !== null ? selectionRangeEnd.toString() :  ''}
+                            onChange={this.handleInputChange}
+                            onKeyPress={this.onlyLetUsersTypeNumbers}
                         />
                     </div>
-                </div>
+                    {
+                        this.state.navigating &&
+                        <div className='submit'>
+                            <input type='submit' value='Go'/>
+                        </div>
+                    }
+                </form>
             </div>
         )
     }
 
+    protected closeComponent = () => this.props.setTimeNavigationOpen(false);
+
+    protected showOptionsMenu = () => <></>;
+
     resultsAreEmpty = () => false;
 
-    setFocus = () => document.getElementById("NAV-MAIN-COMPONENT")?.focus();
+    setFocus = () => document.getElementById('NAV-MAIN-COMPONENT')?.focus();
 
     
 }
+

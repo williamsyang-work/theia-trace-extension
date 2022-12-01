@@ -372,7 +372,8 @@ canvas {
 .nav-main-content {
     display: flex;
     flex-direction: row;
-    justify-content: center;
+    align-items: center;
+    align-content: baseline;
     flex-wrap: wrap;
     justify-content: space-around;
     width: 100%;
@@ -380,9 +381,10 @@ canvas {
 
 .nav-main-content > .section {
     display: grid;
-    grid-template-columns: 115px auto auto;
+    grid-template-columns: auto auto auto auto;
     margin: 3px 10px;
     height: 20px;
+    align-items: center;
 }
 
 .nav-main-content > .section > .title {
