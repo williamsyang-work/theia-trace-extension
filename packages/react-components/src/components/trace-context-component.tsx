@@ -506,38 +506,15 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 // https://github.com/STRML/react-grid-layout/issues/299#issuecomment-524959229
             }
             {
-                this.state.timeNavigationOpen &&
-                <>
-                    {this.renderGridLayout(
-                        [
-                            {
-                                id: "search.idk",
-                                name: "Times",
-                                description: "Modify times w/ numbers",
-                                type: "CUSTOM_SEARCH"
-                            }
-                        ], 
-                        [
-                            {
-                                w: 1,
-                                h: 5,
-                                x: 0,
-                                y: 0,
-                                i: "search.idk",
-                                moved: false,
-                                static: false
-                              }
-                        ]
-                    )}
-                </>
-            }
-            {
                 this.props.overviewDescriptor && this._storedOverviewLayout &&
                 // Margin required to have the close button clickable, else overlapped by the tooltip container
                 <div style={{marginTop: '30px'}}>
                     {this.renderGridLayout([this.props.overviewDescriptor] , [this._storedOverviewLayout], true)}
                     
                 </div>
+            }
+            {
+                this.state.timeNavigationOpen && <>{this.renderTimeNavigation()}</>
             }
             {this.state.pinnedView !== undefined && this._storedPinnedViewLayout !== undefined &&
                 !pinnedViewTimeScale &&
@@ -581,6 +558,24 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
             }
             </div>
         </React.Fragment>;
+    }
+
+    private renderTimeNavigation = () => {
+        return this.renderGridLayout([{
+                id: "search.idk",
+                name: "Times",
+                description: "Modify times w/ numbers",
+                type: "CUSTOM_SEARCH"
+            }], 
+            [{
+                w: 1,
+                h: 5,
+                x: 0,
+                y: 0,
+                i: "search.idk",
+                moved: false,
+                static: false
+            }]);
     }
 
     private renderGridLayout(outputs: OutputDescriptor[], layout: Layout[], isOverview?: boolean) {

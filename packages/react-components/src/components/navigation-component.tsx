@@ -1,27 +1,26 @@
 import React from 'react';
-import { ResponseStatus } from 'tsp-typescript-client';
-import { AbstractOutputComponent, AbstractOutputProps, AbstractOutputState } from './abstract-output-component';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
-import { values } from 'lodash';
+import { AbstractOutputProps, AbstractOutputComponent, AbstractOutputState } from './abstract-output-component';
+import { ResponseStatus } from 'tsp-typescript-client/lib/models/response/responses';
+
 
 export type NavigationComponentProps = AbstractOutputProps & {
     setTimeNavigationOpen: (val?: boolean) => void;
 }
 
-type NavigationComponentState = {
+type NavigationComponentState = AbstractOutputState & {
     viewRangeStart: string;
     viewRangeEnd: string;
     selectionRangeStart: string | null;
     selectionRangeEnd: string | null;
 }
 
-export class NavigationComponent extends React.Component<NavigationComponentProps, NavigationComponentState> {
+export class NavigationComponent extends AbstractOutputComponent<NavigationComponentProps, NavigationComponentState> {
 
     constructor(props: NavigationComponentProps) {
         super(props);
         const { viewRange, selectionRange } = this.props.unitController
         this.state = {
+            outputStatus: ResponseStatus.COMPLETED,
             viewRangeStart: viewRange.start.toString(),
             viewRangeEnd: viewRange.end.toString(),
             selectionRangeStart: selectionRange?.start.toString() ?? null,
@@ -64,7 +63,7 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
             case 'selectionRangeStart':
                 if (valid) {
                     const end = selectionRange?.end ?? BigInt(value);
-                    this.props.unitController.selectionRange = { end, start: BigInt(value) }
+                    this.props.unitController.selectionRange = { end, start: BigInt(value) };
                 } else {
                     this.setState({ selectionRangeEnd: value });
                 }
@@ -72,7 +71,7 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
             case 'selectionRangeEnd':
                 if (valid) {
                     const start = selectionRange?.start ?? BigInt(value);
-                    this.props.unitController.selectionRange = { start, end: BigInt(value) }
+                    this.props.unitController.selectionRange = { start, end: BigInt(value) };
                 } else {
                     this.setState({ selectionRangeEnd: value });
                 }
@@ -89,7 +88,7 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
         return (val >= min) && (val <= max);
     }
 
-    render = () => {
+    renderMainArea = () => {
         const { unitController, setTimeNavigationOpen } = this.props;
         const { viewRange, selectionRange } = unitController;
         const leftPanelWidth = this.props.style.handleWidth ?? 30;
@@ -111,18 +110,12 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
         } = this.state;
 
         return (
-            <div
-                className={"output-container " + this.props.className}
-                style={{ ...this.props.style, width: this.props.outputWidth, marginTop: '30px', height: 'fit-content' }}
-            >
-                <div className="widget-handle" style={widgetStyle}>
-                    <button className='remove-component-button' onClick={() => setTimeNavigationOpen(false)}>
-                        <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                </div>
-                <div className="nav-main-content" style={mainContentStyle}>
-                    <div className="section">
-                        <b>View Range - </b>
+            <div className="nav-main-content" id="NAV-MAIN-COMPONENT" style={mainContentStyle}>
+                <div className="section">
+                    <div className="title">
+                        <b>View Range</b>
+                    </div>
+                    <div className="input">
                         <span>Start : </span>
                         <input
                             type="number"
@@ -132,6 +125,8 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
                                 color: this.isValueValid(viewRangeStart) ? 'black' : 'red',
                             }}
                         />
+                    </div>
+                    <div className="input">
                         <span>End : </span>
                         <input
                             type="number"
@@ -142,8 +137,12 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
                             }}
                         />
                     </div>
-                    <div className="section">
-                        <b>Selection Range - </b>
+                </div>
+                <div className="section">
+                    <div className="title">
+                        <b>Selection Range</b>
+                    </div>
+                    <div className="input">
                         <span>Start : </span>
                         <input
                             type="number"
@@ -153,6 +152,8 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
                                 color: this.isValueValid(selectionRangeStart ?? '') ? 'black' : 'red',
                             }}
                         />
+                    </div>
+                    <div className="input">
                         <span>End : </span>
                         <input
                             type="number"
@@ -168,5 +169,9 @@ export class NavigationComponent extends React.Component<NavigationComponentProp
         )
     }
 
+    resultsAreEmpty = () => false;
 
+    setFocus = () => document.getElementById("NAV-MAIN-COMPONENT")?.focus();
+
+    
 }

@@ -368,3 +368,31 @@ canvas {
     margin-top: 5px;
     transform: rotate(180deg);
 }
+
+.nav-main-content {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    width: 100%;
+}
+
+.nav-main-content > .section {
+    display: grid;
+    grid-template-columns: 115px auto auto;
+    margin: 3px 10px;
+    height: 20px;
+}
+
+.nav-main-content > .section > .title {
+    margin: 0px 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-main-content > .section > .input {
+    display: inline-block;
+    margin: 0px 3px;
+}
