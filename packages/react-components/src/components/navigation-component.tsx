@@ -2,6 +2,7 @@ import React from 'react';
 import { AbstractOutputProps, AbstractOutputComponent, AbstractOutputState } from './abstract-output-component';
 import { ResponseStatus } from 'tsp-typescript-client/lib/models/response/responses';
 import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
+import { selection } from 'd3';
 
 
 export type NavigationComponentProps = AbstractOutputProps & {
@@ -11,6 +12,7 @@ export type NavigationComponentProps = AbstractOutputProps & {
 type NavigationComponentState = AbstractOutputState & {
     selectionRangeStart: bigint | null;
     selectionRangeEnd: bigint | null;
+    receivingInput: boolean;
     navigating: boolean;
     invalidInput: boolean;
     errorMessage: string;
@@ -28,6 +30,7 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
             outputStatus: ResponseStatus.COMPLETED,
             selectionRangeStart: this.props.selectionRange?.getStart() ?? null,
             selectionRangeEnd: this.props.selectionRange?.getEnd() ?? null,
+            receivingInput: false,
             navigating: false,
             invalidInput: false,
             errorMessage: '',
@@ -37,16 +40,19 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
     }
 
     onSelectionRangeChange = () => {
-        const { selectionRange, offset } = this.unitController;
+        const { selectionRange, offset, viewRangeLength } = this.unitController;
 
         if (!selectionRange) {
-            alert('on undefined selection range change');
             this.setState({
                 selectionRangeStart: null,
                 selectionRangeEnd: null,
                 navigating: false,
             })
             return;
+        }
+
+        if (this.state.receivingInput) {
+            this.centerSelection();
         }
 
         let start = selectionRange.start + offset;
@@ -67,10 +73,10 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
 
         switch (key) {
             case 'selectionRangeStart':
-                this.setState({ selectionRangeStart: value, navigating: true }, () => console.dir(this.state));
+                this.setState({ selectionRangeStart: value, receivingInput: true });
                 break;
             case 'selectionRangeEnd':
-                this.setState({ selectionRangeEnd: value, navigating: true }, () => console.dir(this.state));
+                this.setState({ selectionRangeEnd: value, receivingInput: true });
                 break;
             default:
                 throw 'Key does not exist in TimeNavigationState';
@@ -83,7 +89,6 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
         const isValid = (n: bigint) => (n >= this.unitController.offset) && (n <= (this.unitController.offset + this.unitController.absoluteRange));
 
         if (selectionRangeStart === null && selectionRangeEnd === null) {
-            this.unitController.selectionRange = undefined;
             return;
         }
 
@@ -102,15 +107,20 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
 
         console.dir({ selectionRangeStart, selectionRangeEnd, startValid, endValid });
 
+        let navigating;
+
         if (startValid && endValid) {
             this.unitController.selectionRange = {
-                start: selectionRangeStart + this.unitController.offset,
-                end: selectionRangeEnd + this.unitController.offset
+                start: selectionRangeStart - this.unitController.offset,
+                end: selectionRangeEnd - this.unitController.offset,
             }
-            return;
+            navigating = true;
         } else {
-            alert('Please check your inputs :)');
+            this.onSelectionRangeChange();
+            navigating = false;
         }
+
+        this.setState({ receivingInput: false, navigating })
     }
 
 
@@ -139,6 +149,40 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
         }
     }
 
+    centerSelection = () => {
+        const { selectionRange, viewRangeLength, absoluteRange } = this.unitController;
+
+        if (!selectionRange || viewRangeLength === absoluteRange) {
+            return;
+        }
+
+        let selectionRangeCenter = (selectionRange.start === selectionRange.end) ? selectionRange.start : (selectionRange.end + selectionRange.start) / BigInt(2);
+        let halfViewRange = this.unitController.viewRangeLength / BigInt(2);
+        let newStart = selectionRangeCenter - halfViewRange;
+        let newEnd = selectionRangeCenter + halfViewRange;
+
+        // Ensure view range doesn't shrink when too far left/right
+        let leftOverlap = newStart < BigInt(0) ? - newStart : BigInt(0);
+        let rightOverlap = newEnd > absoluteRange ? newEnd - absoluteRange : BigInt(0);
+        if (leftOverlap) {
+            newEnd -= leftOverlap;
+        } else if (rightOverlap) {
+            newStart -= rightOverlap;
+        }
+
+        // Zoom out to selection range if view range is too small
+        if (selectionRange.end - selectionRange.start > viewRangeLength) {
+            newStart = selectionRange.start;
+            newEnd = selectionRange.end;
+        }
+        this.unitController.viewRange = {
+            start: newStart,
+            end: newEnd,
+        };
+
+        return;
+    }
+
     renderMainArea = () => {
 
         const {
@@ -146,10 +190,11 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
             selectionRangeEnd
         } = this.state;
 
-        const { viewRange, offset } = this.unitController;
+        const { viewRange, selectionRange, offset } = this.unitController;
         const viewRangeStart = (viewRange.start + offset).toString();
         const viewRangeEnd = (viewRange.end + offset).toString();
-
+        const selectionStart = selectionRange ? (selectionRange.start + offset).toString() : '';
+        const selectionEnd = selectionRange ? (selectionRange.start + offset).toString() : '';
         return (
             <div className='nav-main-content' id='NAV-MAIN-COMPONENT'>
                 <div className='section'>
@@ -165,9 +210,22 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
                         <span>{viewRangeEnd}</span>
                     </div>
                 </div>
-                <form className='section' onSubmit={this.handleSubmit}>
+                <div className='section'>
                     <div className='title'>
                         <b>Selection Range</b>
+                    </div>
+                    <div className='input'>
+                        <span>Start : </span>
+                        <span>{selectionStart}</span>
+                    </div>
+                    <div className='input'>
+                        <span>End : </span>
+                        <span>{selectionEnd}</span>
+                    </div>
+                </div>
+                <form className='section' onSubmit={this.handleSubmit}>
+                    <div className='title'>
+                        <b>Navigate To Time: </b>
                     </div>
                     <div className='input'>
                         <span>Start : </span>
@@ -190,7 +248,7 @@ export class NavigationComponent extends AbstractOutputComponent<NavigationCompo
                         />
                     </div>
                     {
-                        this.state.navigating &&
+                        this.state.receivingInput &&
                         <div className='submit'>
                             <input type='submit' value='Go'/>
                         </div>
