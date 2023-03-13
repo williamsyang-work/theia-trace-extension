@@ -4,6 +4,7 @@ import { Experiment } from 'tsp-typescript-client/lib/models/experiment';
 import { Trace } from 'tsp-typescript-client/lib/models/trace';
 import { OpenedTracesUpdatedSignalPayload } from './opened-traces-updated-signal-payload';
 import { OutputAddedSignalPayload } from './output-added-signal-payload';
+import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
 export declare interface SignalManager {
     fireTraceOpenedSignal(trace: Trace): void;
     fireTraceDeletedSignal(trace: Trace): void;
@@ -60,7 +61,8 @@ export const Signals = {
     PIN_VIEW: 'view pinned',
     UNPIN_VIEW: 'view unpinned',
     OPEN_OVERVIEW_OUTPUT: 'open overview output',
-    OVERVIEW_OUTPUT_SELECTED: 'overview output selected'
+    OVERVIEW_OUTPUT_SELECTED: 'overview output selected',
+    NEW_ACTIVE_UNIT_CONTROLLER: 'new active unit controller',
 };
 
 export class SignalManager extends EventEmitter implements SignalManager {
@@ -140,6 +142,9 @@ export class SignalManager extends EventEmitter implements SignalManager {
     }
     fireOverviewOutputSelectedSignal(payload: { traceId: string, outputDescriptor: OutputDescriptor}): void {
         this.emit(Signals.OVERVIEW_OUTPUT_SELECTED, payload);
+    }
+    fireNewActiveUnitController(unitController: TimeGraphUnitController): void {
+        this.emit(Signals.NEW_ACTIVE_UNIT_CONTROLLER, unitController);
     }
 }
 

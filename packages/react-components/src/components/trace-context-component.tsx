@@ -92,7 +92,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private chartPersistedState: { output: OutputDescriptor, payload?: any} | undefined = undefined;
 
-    private unitController: TimeGraphUnitController;
+    public unitController: TimeGraphUnitController;
     private historyHandler: UnitControllerHistoryHandler;
     private tooltipComponent: React.RefObject<TooltipComponent>;
     private tooltipXYComponent: React.RefObject<TooltipXYComponent>;

@@ -34,6 +34,22 @@
     white-space: nowrap;
 }
 
+.trace-explorer-panel-content > form > .view-range-widget-section {
+    margin: 5px 0;
+}
+
+.trace-explorer-panel-content > form > .view-range-widget-section.invalid-input {
+    color: red;
+}
+
+.trace-explorer-panel-content > form > .view-range-widget-section > h4 {
+    margin-bottom: 3px;
+}
+
+.trace-explorer-panel-content > form > .view-range-widget-section > input[type=submit] {
+    margin: 3px;
+}
+
 .trace-explorer-panel-content>ul {
     list-style-type: none;
     padding-inline-start: 0px;
