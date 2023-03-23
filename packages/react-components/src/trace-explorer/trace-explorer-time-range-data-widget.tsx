@@ -2,6 +2,7 @@ import * as React from 'react';
 import { TimelineChart } from 'timeline-chart/lib/time-graph-model';
 import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
 import { signalManager, Signals } from 'traceviewer-base/lib/signals/signal-manager';
+import { debounce } from 'lodash';
 
 export interface ReactTimeRangeDataWidgetProps {
     id: string,
@@ -25,6 +26,9 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
     private selectionStartInput: React.RefObject<HTMLInputElement>;
     private selectionEndInput: React.RefObject<HTMLInputElement>;
 
+    private viewRangeTimeout?: ReturnType<typeof setTimeout>;
+    private selectionRangeTimeout?: ReturnType<typeof setTimeout>;
+
     constructor(props: ReactTimeRangeDataWidgetProps) {
         super(props);
         this.selectionEndInput = React.createRef();
@@ -34,37 +38,45 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
             userInputSelectionStartIsValid: true,
             userInputSelectionEndIsValid: true,
         };
-        signalManager().on(Signals.NEW_ACTIVE_UNIT_CONTROLLER, this.onNewActiveUnitController);
+        signalManager().on(Signals.NEW_ACTIVE_VIEW_RANGE, this.onViewRangeChanged);
+        signalManager().on(Signals.NEW_ACTIVE_SELECTION_RANGE, this.onSelectionRangeChanged);
+        signalManager().on(Signals.TRACEVIEWERTAB_ACTIVATED, () => console.dir(`we hear it in here :)`));
     }
 
-    componentWillUnmount = (): void => {
-        this.removeHandlers();
-        signalManager().off(Signals.NEW_ACTIVE_UNIT_CONTROLLER, this.onNewActiveUnitController);
-    };
-
-    addHandlers = (): void => {
-        this.state.unitController?.onSelectionRangeChange(this.onUnitControllerValueChange);
-        this.state.unitController?.onViewRangeChanged(this.onUnitControllerValueChange);
-    };
-
-    removeHandlers = (): void => {
-        this.state.unitController?.removeSelectionRangeChangedHandler(this.onUnitControllerValueChange);
-        this.state.unitController?.removeViewRangeChangedHandler(this.onUnitControllerValueChange);
-    };
-
-    onNewActiveUnitController = (unitController: TimeGraphUnitController): void => {
-        this.removeHandlers();
-        const { viewRange, selectionRange, offset } = unitController;
-        this.setState({ unitController, viewRange, selectionRange, offset }, this.addHandlers);
-    };
-
-    onUnitControllerValueChange = (): void => {
-        if (!this.state.unitController) {
-            return;
+    onViewRangeChanged = (s: string): void => {
+        const [start, end, offset] = s.split("|");
+        const viewRange = {
+            start: BigInt(start) + BigInt(offset),
+            end: BigInt(end) + BigInt(offset),
         }
-        const  { viewRange, selectionRange, offset } = this.state.unitController;
-        this.setState({ viewRange, selectionRange, offset, inputting: false }, this.setFormInputValuesToUnitControllersValue);
-    };
+
+        // Debounce
+        if (this.viewRangeTimeout) {
+            clearTimeout(this.viewRangeTimeout);
+        }
+        this.viewRangeTimeout = setTimeout(() => {
+            this.setState({ viewRange }, this.setFormInputValuesToUnitControllersValue);
+        }, 250);
+    }
+    
+    onSelectionRangeChanged = (s: string): void => {
+        const [start, end, offset] = s.split("|");
+        let selectionRange: TimelineChart.TimeGraphRange | undefined = undefined;
+        if (start && end) {
+            selectionRange = {
+                start: BigInt(start) + BigInt(offset),
+                end: BigInt(end) + BigInt(offset),
+            }
+        }
+
+        // Debounce
+        if (this.selectionRangeTimeout) {
+            clearTimeout(this.selectionRangeTimeout);
+        }
+        this.selectionRangeTimeout = setTimeout(() => {
+            this.setState({ selectionRange }, this.setFormInputValuesToUnitControllersValue);
+        }, 250);
+    }
 
     setFormInputValuesToUnitControllersValue = (): void => {
         const { selectionRange } = this.state;
@@ -122,8 +134,8 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
      * @returns { start: string, end: string }
      */
     getStartAndEnd = (v1: bigint | string | undefined, v2: bigint | string | undefined): { start: string, end: string } => {
-        const { unitController, offset } = this.state;
-        if (!unitController || !offset || v1 === undefined || v2 === undefined) {
+
+        if (v1 === undefined || v2 === undefined) {
             return { start: '', end: '' };
         }
 
@@ -136,8 +148,8 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
 
         // We display values in absolute time with the offset.
         return {
-            start: (start + offset).toString(),
-            end: (end + offset).toString()
+            start: (start).toString(),
+            end: (end).toString()
         };
     };
 

@@ -248,7 +248,7 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
                             if (sendSignal) {
                                 signalManager().fireTraceViewerTabActivatedSignal(experiment);
                             }
-                            this.dispatchNewActiveUnitController();
+                            // this.dispatchNewActiveUnitController();
                             this.traceExplorerContribution.openView({
                                 activate: true
                             });
@@ -417,7 +417,7 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
 
             this.shell.activateWidget(this.openedExperiment.UUID);
         }
-        this.dispatchNewActiveUnitController();
+        // this.dispatchNewActiveUnitController();
     }
 
     protected dispatchNewActiveUnitController = (): void => {

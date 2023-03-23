@@ -231,6 +231,8 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         }
         this.historyHandler.clear();
         this.historyHandler.addCurrentState();
+        this.emitSelectionRangeChangedSignal();
+        this.emitViewRangeChangedSignal();
     }
 
     private async updateTrace() {
@@ -285,6 +287,9 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().on(Signals.REDO, this.redoHistory);
         signalManager().on(Signals.PIN_VIEW, this.onPinView);
         signalManager().on(Signals.UNPIN_VIEW, this.onUnPinView);
+        signalManager().on(Signals.TRACEVIEWERTAB_ACTIVATED, this.onNewActiveTab);
+        this.unitController.onViewRangeChanged(this.emitViewRangeChangedSignal);
+        this.unitController.onSelectionRangeChange(this.emitSelectionRangeChangedSignal);
     }
 
     private unsubscribeToEvents() {
@@ -295,6 +300,9 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().off(Signals.REDO, this.redoHistory);
         signalManager().off(Signals.PIN_VIEW, this.onPinView);
         signalManager().off(Signals.UNPIN_VIEW, this.onUnPinView);
+        signalManager().off(Signals.TRACEVIEWERTAB_ACTIVATED, this.onNewActiveTab);
+        this.unitController.removeViewRangeChangedHandler(this.emitViewRangeChangedSignal);
+        this.unitController.removeSelectionRangeChangedHandler(this.emitSelectionRangeChangedSignal);
     }
 
     async componentDidUpdate(prevProps: TraceContextProps, prevState: TraceContextState): Promise<void> {
@@ -312,6 +320,13 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 // one of the existing outputs is unpinned - scroll to unpinned output
                 this.scrollToUnPinnedView(prevState.pinnedView);
             }
+
+        if (prevState.style.width === 0 && this.state.style.width > 0) {
+            // I THINK this means the tab was focused.
+            this.emitSelectionRangeChangedSignal();
+            this.emitViewRangeChangedSignal();
+        }
+        
     }
 
     private scrollToBottom(): void {
@@ -661,6 +676,34 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private updateHistory = (): void => {
         this.historyHandler.addCurrentState();
     };
+
+    /*
+    *   We are emitting view range and selection range for the Time Range Data Widget
+    *   which does not have access to the unit controler but needs the time ranges.
+    */
+    private emitViewRangeChangedSignal = (): void => {
+        const { start, end } = this.unitController.viewRange;
+        const offset = this.unitController.offset;
+        const string = `${start.toString()}|${end.toString()}|${offset}`;
+        signalManager().fireNewActiveViewRange(string);
+    }
+    private emitSelectionRangeChangedSignal = (): void => {
+        const start = this.unitController.selectionRange?.start.toString() || "";
+        const end = this.unitController.selectionRange?.end.toString() || "";
+        const offset = this.unitController.offset.toString();
+        const string = `${start}|${end}|${offset}`;
+        signalManager().fireNewActiveSelectionRange(string);
+    }
+
+    /*
+    *   When a new tab is activated we need to send the new time range data
+    *   to the Time Range Data Widget
+    */
+    private onNewActiveTab = (): void => {
+        console.dir('NEW TAB :)');
+        this.emitViewRangeChangedSignal();
+        this.emitSelectionRangeChangedSignal();
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private doHandleUnPinView(output: OutputDescriptor, payload?: any) {

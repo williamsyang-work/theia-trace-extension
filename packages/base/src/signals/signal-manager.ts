@@ -63,6 +63,8 @@ export const Signals = {
     OPEN_OVERVIEW_OUTPUT: 'open overview output',
     OVERVIEW_OUTPUT_SELECTED: 'overview output selected',
     NEW_ACTIVE_UNIT_CONTROLLER: 'new active unit controller',
+    NEW_ACTIVE_VIEW_RANGE: 'new active view range',
+    NEW_ACTIVE_SELECTION_RANGE: 'new active selection range',
 };
 
 export class SignalManager extends EventEmitter implements SignalManager {
@@ -145,6 +147,12 @@ export class SignalManager extends EventEmitter implements SignalManager {
     }
     fireNewActiveUnitController(unitController: TimeGraphUnitController): void {
         this.emit(Signals.NEW_ACTIVE_UNIT_CONTROLLER, unitController);
+    }
+    fireNewActiveViewRange(s: string): void {
+        this.emit(Signals.NEW_ACTIVE_VIEW_RANGE, s);
+    }
+    fireNewActiveSelectionRange(s: string): void {
+        this.emit(Signals.NEW_ACTIVE_SELECTION_RANGE, s);
     }
 }
 
