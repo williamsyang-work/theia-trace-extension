@@ -7,7 +7,7 @@ import { TraceExplorerPlaceholderWidget } from './trace-explorer-sub-widgets/tra
 import { TraceExplorerServerStatusWidget } from './trace-explorer-sub-widgets/trace-explorer-server-status-widget';
 import { TraceExplorerTimeRangeDataWidget } from './trace-explorer-sub-widgets/theia-trace-explorer-time-range-data-widget';
 import { signalManager, Signals } from 'traceviewer-base/lib/signals/signal-manager';
-import { OpenedTracesUpdatedSignalPayload } from 'traceviewer-base/src/signals/opened-traces-updated-signal-payload';
+import { OpenedTracesUpdatedSignalPayload } from 'traceviewer-base/lib/signals/opened-traces-updated-signal-payload';
 import { TraceServerConnectionStatusService } from '../trace-server-status';
 
 @injectable()

@@ -33,6 +33,7 @@ export declare interface SignalManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fireUnPinView(output: OutputDescriptor, payload?: any): void;
     fireOverviewOutputSelectedSignal(payload: { traceId: string, outputDescriptor: OutputDescriptor}): void;
+    fireSaveAsCsv(payload: {traceId: string, data: string}): void;
 }
 
 export const Signals = {
@@ -65,6 +66,7 @@ export const Signals = {
     NEW_ACTIVE_UNIT_CONTROLLER: 'new active unit controller',
     NEW_ACTIVE_VIEW_RANGE: 'new active view range',
     NEW_ACTIVE_SELECTION_RANGE: 'new active selection range',
+    SAVE_AS_CSV: 'save as csv'
 };
 
 export class SignalManager extends EventEmitter implements SignalManager {
@@ -153,6 +155,8 @@ export class SignalManager extends EventEmitter implements SignalManager {
     }
     fireNewActiveSelectionRange(s: string): void {
         this.emit(Signals.NEW_ACTIVE_SELECTION_RANGE, s);
+    fireSaveAsCsv(payload: {traceId: string, data: string}): void {
+        this.emit(Signals.SAVE_AS_CSV, payload);
     }
 }
 
