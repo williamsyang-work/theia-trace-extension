@@ -4,6 +4,7 @@ import '../../style/trace-context-style.css';
 import '../../style/output-components-style.css';
 import '../../style/trace-explorer.css';
 import '../../style/status-bar.css';
+import { debounce } from 'lodash';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { TimelineChart } from 'timeline-chart/lib/time-graph-model';
 import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
@@ -29,6 +30,7 @@ import { DataTreeOutputComponent } from './datatree-output-component';
 import { cloneDeep } from 'lodash';
 import { UnitControllerHistoryHandler } from './utils/unit-controller-history-handler';
 import { TraceOverviewComponent } from './trace-overview-component';
+import { ExperimentTimeRangeData } from 'traceviewer-base/lib/signals/unit-controller-updated-signal-payload';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -92,7 +94,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private chartPersistedState: { output: OutputDescriptor, payload?: any} | undefined = undefined;
 
-    public unitController: TimeGraphUnitController;
+    private unitController: TimeGraphUnitController;
     private historyHandler: UnitControllerHistoryHandler;
     private tooltipComponent: React.RefObject<TooltipComponent>;
     private tooltipXYComponent: React.RefObject<TooltipXYComponent>;
@@ -101,6 +103,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     private _storedNonTimescaleLayout: Layout[] = [];
     private _storedPinnedViewLayout: Layout | undefined = undefined;
     private _storedOverviewLayout: Layout | undefined = undefined;
+    private onUnitControllerUpdate: () => void;
 
     protected widgetResizeHandlers: (() => void)[] = [];
     protected readonly addWidgetResizeHandler = (h: () => void): void => {
@@ -203,6 +206,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         this.setChartOffset = this.setChartOffset.bind(this);
         this.onLayoutChange = this.onLayoutChange.bind(this);
         this.props.addResizeHandler(this.onResize);
+        this.onUnitControllerUpdate = debounce(this.doHandleUnitControllerUpdate, 250, { leading: true, trailing: true });
         this.initialize();
         this.subscribeToEvents();
     }
@@ -231,8 +235,7 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         }
         this.historyHandler.clear();
         this.historyHandler.addCurrentState();
-        this.emitSelectionRangeChangedSignal();
-        this.emitViewRangeChangedSignal();
+        this.onUnitControllerUpdate();
     }
 
     private async updateTrace() {
@@ -287,9 +290,9 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().on(Signals.REDO, this.redoHistory);
         signalManager().on(Signals.PIN_VIEW, this.onPinView);
         signalManager().on(Signals.UNPIN_VIEW, this.onUnPinView);
-        signalManager().on(Signals.TRACEVIEWERTAB_ACTIVATED, this.onNewActiveTab);
-        this.unitController.onViewRangeChanged(this.emitViewRangeChangedSignal);
-        this.unitController.onSelectionRangeChange(this.emitSelectionRangeChangedSignal);
+        signalManager().on(Signals.UNIT_CONTROLLER_MANUAL_INPUT, this.onUnitConrollerManualInput);
+        this.unitController.onViewRangeChanged(this.onUnitControllerUpdate);
+        this.unitController.onSelectionRangeChange(this.onUnitControllerUpdate);
     }
 
     private unsubscribeToEvents() {
@@ -300,9 +303,9 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
         signalManager().off(Signals.REDO, this.redoHistory);
         signalManager().off(Signals.PIN_VIEW, this.onPinView);
         signalManager().off(Signals.UNPIN_VIEW, this.onUnPinView);
-        signalManager().off(Signals.TRACEVIEWERTAB_ACTIVATED, this.onNewActiveTab);
-        this.unitController.removeViewRangeChangedHandler(this.emitViewRangeChangedSignal);
-        this.unitController.removeSelectionRangeChangedHandler(this.emitSelectionRangeChangedSignal);
+        signalManager().off(Signals.UNIT_CONTROLLER_MANUAL_INPUT, this.onUnitConrollerManualInput);
+        this.unitController.removeViewRangeChangedHandler(this.onUnitControllerUpdate);
+        this.unitController.removeSelectionRangeChangedHandler(this.onUnitControllerUpdate);
     }
 
     async componentDidUpdate(prevProps: TraceContextProps, prevState: TraceContextState): Promise<void> {
@@ -320,13 +323,6 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
                 // one of the existing outputs is unpinned - scroll to unpinned output
                 this.scrollToUnPinnedView(prevState.pinnedView);
             }
-
-        if (prevState.style.width === 0 && this.state.style.width > 0) {
-            // I THINK this means the tab was focused.
-            this.emitSelectionRangeChangedSignal();
-            this.emitViewRangeChangedSignal();
-        }
-        
     }
 
     private scrollToBottom(): void {
@@ -681,28 +677,20 @@ export class TraceContextComponent extends React.Component<TraceContextProps, Tr
     *   We are emitting view range and selection range for the Time Range Data Widget
     *   which does not have access to the unit controler but needs the time ranges.
     */
-    private emitViewRangeChangedSignal = (): void => {
-        const { start, end } = this.unitController.viewRange;
-        const offset = this.unitController.offset;
-        const string = `${start.toString()}|${end.toString()}|${offset}`;
-        signalManager().fireNewActiveViewRange(string);
-    }
-    private emitSelectionRangeChangedSignal = (): void => {
-        const start = this.unitController.selectionRange?.start.toString() || "";
-        const end = this.unitController.selectionRange?.end.toString() || "";
-        const offset = this.unitController.offset.toString();
-        const string = `${start}|${end}|${offset}`;
-        signalManager().fireNewActiveSelectionRange(string);
+    private doHandleUnitControllerUpdate = (): void => {
+        const { viewRange, selectionRange, offset, absoluteRange } = this.unitController;
+        const payload = {
+            id: this.props.experiment.UUID,
+            viewRange,
+            selectionRange,
+            offset,
+            absoluteRange,
+        }
+        signalManager().fireUnitControllerUpdated(payload as ExperimentTimeRangeData);
     }
 
-    /*
-    *   When a new tab is activated we need to send the new time range data
-    *   to the Time Range Data Widget
-    */
-    private onNewActiveTab = (): void => {
-        console.dir('NEW TAB :)');
-        this.emitViewRangeChangedSignal();
-        this.emitSelectionRangeChangedSignal();
+    onUnitConrollerManualInput = (range: { start: bigint, end: bigint }): void => {
+        this.unitController.selectionRange = range;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

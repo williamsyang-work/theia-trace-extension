@@ -4,7 +4,8 @@ import { Experiment } from 'tsp-typescript-client/lib/models/experiment';
 import { Trace } from 'tsp-typescript-client/lib/models/trace';
 import { OpenedTracesUpdatedSignalPayload } from './opened-traces-updated-signal-payload';
 import { OutputAddedSignalPayload } from './output-added-signal-payload';
-import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
+import { ExperimentTimeRangeData } from './unit-controller-updated-signal-payload';
+
 export declare interface SignalManager {
     fireTraceOpenedSignal(trace: Trace): void;
     fireTraceDeletedSignal(trace: Trace): void;
@@ -33,6 +34,8 @@ export declare interface SignalManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fireUnPinView(output: OutputDescriptor, payload?: any): void;
     fireOverviewOutputSelectedSignal(payload: { traceId: string, outputDescriptor: OutputDescriptor}): void;
+    fireUnitControllerUpdated(payload: ExperimentTimeRangeData): void;
+    fireUnitControllerManualInput(payload: { start: bigint, end: bigint }): void;
     fireSaveAsCsv(payload: {traceId: string, data: string}): void;
 }
 
@@ -63,9 +66,8 @@ export const Signals = {
     UNPIN_VIEW: 'view unpinned',
     OPEN_OVERVIEW_OUTPUT: 'open overview output',
     OVERVIEW_OUTPUT_SELECTED: 'overview output selected',
-    NEW_ACTIVE_UNIT_CONTROLLER: 'new active unit controller',
-    NEW_ACTIVE_VIEW_RANGE: 'new active view range',
-    NEW_ACTIVE_SELECTION_RANGE: 'new active selection range',
+    UNIT_CONTROLLER_UPDATED: 'unit controller updated',
+    UNIT_CONTROLLER_MANUAL_INPUT: 'unit controller manual input',
     SAVE_AS_CSV: 'save as csv'
 };
 
@@ -147,14 +149,12 @@ export class SignalManager extends EventEmitter implements SignalManager {
     fireOverviewOutputSelectedSignal(payload: { traceId: string, outputDescriptor: OutputDescriptor}): void {
         this.emit(Signals.OVERVIEW_OUTPUT_SELECTED, payload);
     }
-    fireNewActiveUnitController(unitController: TimeGraphUnitController): void {
-        this.emit(Signals.NEW_ACTIVE_UNIT_CONTROLLER, unitController);
+    fireUnitControllerUpdated(data: ExperimentTimeRangeData): void {
+        this.emit(Signals.UNIT_CONTROLLER_UPDATED, data);
     }
-    fireNewActiveViewRange(s: string): void {
-        this.emit(Signals.NEW_ACTIVE_VIEW_RANGE, s);
+    fireUnitControllerManualInput(payload: { start: bigint; end: bigint; }): void {
+        this.emit(Signals.UNIT_CONTROLLER_MANUAL_INPUT, payload);
     }
-    fireNewActiveSelectionRange(s: string): void {
-        this.emit(Signals.NEW_ACTIVE_SELECTION_RANGE, s);
     fireSaveAsCsv(payload: {traceId: string, data: string}): void {
         this.emit(Signals.SAVE_AS_CSV, payload);
     }

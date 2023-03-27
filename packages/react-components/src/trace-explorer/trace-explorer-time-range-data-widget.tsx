@@ -1,8 +1,7 @@
 import * as React from 'react';
-import { TimelineChart } from 'timeline-chart/lib/time-graph-model';
-import { TimeGraphUnitController } from 'timeline-chart/lib/time-graph-unit-controller';
+import { ExperimentTimeRangeData } from 'traceviewer-base/src/signals/unit-controller-updated-signal-payload';
 import { signalManager, Signals } from 'traceviewer-base/lib/signals/signal-manager';
-import { debounce } from 'lodash';
+import { Experiment } from 'tsp-typescript-client';
 
 export interface ReactTimeRangeDataWidgetProps {
     id: string,
@@ -10,10 +9,8 @@ export interface ReactTimeRangeDataWidgetProps {
 }
 
 export interface ReactTimeRangeDataWidgetState {
-    unitController?: TimeGraphUnitController,
-    viewRange?: TimelineChart.TimeGraphRange,
-    selectionRange?: TimelineChart.TimeGraphRange,
-    offset?: bigint,
+    activeExperiment?: string,
+    activeData?: ExperimentTimeRangeData,
     userInputSelectionStartIsValid: boolean,
     userInputSelectionEndIsValid: boolean,
     userInputSelectionStart?: bigint,
@@ -26,61 +23,43 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
     private selectionStartInput: React.RefObject<HTMLInputElement>;
     private selectionEndInput: React.RefObject<HTMLInputElement>;
 
-    private viewRangeTimeout?: ReturnType<typeof setTimeout>;
-    private selectionRangeTimeout?: ReturnType<typeof setTimeout>;
+    private experimentDataMap: Map<string, ExperimentTimeRangeData>;
 
     constructor(props: ReactTimeRangeDataWidgetProps) {
         super(props);
         this.selectionEndInput = React.createRef();
         this.selectionStartInput = React.createRef();
+        this.experimentDataMap = new Map<string, ExperimentTimeRangeData>();
         this.state = {
             inputting: false,
             userInputSelectionStartIsValid: true,
             userInputSelectionEndIsValid: true,
         };
-        signalManager().on(Signals.NEW_ACTIVE_VIEW_RANGE, this.onViewRangeChanged);
-        signalManager().on(Signals.NEW_ACTIVE_SELECTION_RANGE, this.onSelectionRangeChanged);
-        signalManager().on(Signals.TRACEVIEWERTAB_ACTIVATED, () => console.dir(`we hear it in here :)`));
+        signalManager().on(Signals.UNIT_CONTROLLER_UPDATED, this.onUnitControllerUpdated);
+        signalManager().on(Signals.EXPERIMENT_SELECTED, this.onExperimentSelected);
     }
 
-    onViewRangeChanged = (s: string): void => {
-        const [start, end, offset] = s.split("|");
-        const viewRange = {
-            start: BigInt(start) + BigInt(offset),
-            end: BigInt(end) + BigInt(offset),
-        }
-
-        // Debounce
-        if (this.viewRangeTimeout) {
-            clearTimeout(this.viewRangeTimeout);
-        }
-        this.viewRangeTimeout = setTimeout(() => {
-            this.setState({ viewRange }, this.setFormInputValuesToUnitControllersValue);
-        }, 250);
+    onUnitControllerUpdated = (payload: ExperimentTimeRangeData): void => {
+        this.experimentDataMap.set(payload.id, payload);
+        this.updateActiveData(payload.id);
     }
-    
-    onSelectionRangeChanged = (s: string): void => {
-        const [start, end, offset] = s.split("|");
-        let selectionRange: TimelineChart.TimeGraphRange | undefined = undefined;
-        if (start && end) {
-            selectionRange = {
-                start: BigInt(start) + BigInt(offset),
-                end: BigInt(end) + BigInt(offset),
-            }
-        }
 
-        // Debounce
-        if (this.selectionRangeTimeout) {
-            clearTimeout(this.selectionRangeTimeout);
-        }
-        this.selectionRangeTimeout = setTimeout(() => {
-            this.setState({ selectionRange }, this.setFormInputValuesToUnitControllersValue);
-        }, 250);
+    onExperimentSelected = (experiment: Experiment | undefined): void => {
+        this.setState(
+            { activeExperiment: experiment?.UUID },
+            () => this.updateActiveData(experiment?.UUID)
+        );
+    }
+
+    updateActiveData = (id: string | undefined): void => {
+        const activeData = id ? this.experimentDataMap.get(id) : undefined;
+        this.setState({ activeData });
     }
 
     setFormInputValuesToUnitControllersValue = (): void => {
-        const { selectionRange } = this.state;
-        const { start , end } = this.getStartAndEnd(selectionRange?.start, selectionRange?.end);
+        const { activeData } = this.state;
+
+        const { start , end } = this.getStartAndEnd(activeData?.selectionRange?.start, activeData?.selectionRange?.end, activeData?.offset);
         if (this.selectionStartInput.current && this.selectionEndInput.current) {
             this.selectionStartInput.current.value = start;
             this.selectionEndInput.current.value = end;
@@ -117,8 +96,8 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
     };
 
     onSubmit = (event: React.FormEvent): void => {
-        this.verifyUserInput();
         event.preventDefault();
+        this.verifyUserInput();
     };
 
     onCancel = (): void => {
@@ -133,7 +112,7 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
      * @param value2
      * @returns { start: string, end: string }
      */
-    getStartAndEnd = (v1: bigint | string | undefined, v2: bigint | string | undefined): { start: string, end: string } => {
+    getStartAndEnd = (v1: bigint | string | undefined, v2: bigint | string | undefined, offset: bigint | string | undefined): { start: string, end: string } => {
 
         if (v1 === undefined || v2 === undefined) {
             return { start: '', end: '' };
@@ -141,6 +120,7 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
 
         v1 = BigInt(v1);
         v2 = BigInt(v2);
+        offset = BigInt(offset || 0);
 
         const reverse = v1 > v2;
         const start = reverse ? v2 : v1;
@@ -148,20 +128,20 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
 
         // We display values in absolute time with the offset.
         return {
-            start: (start).toString(),
-            end: (end).toString()
+            start: (start + offset).toString(),
+            end: (end + offset).toString()
         };
     };
 
     verifyUserInput = (): void => {
-        let { unitController, userInputSelectionStart, userInputSelectionEnd } = this.state;
+        let { activeData, userInputSelectionStart, userInputSelectionEnd } = this.state;
 
         // We need at least one value to change: start or end.
-        if (!unitController || (!userInputSelectionStart && !userInputSelectionEnd)) {
+        if (!activeData || (!userInputSelectionStart && !userInputSelectionEnd)) {
             this.setFormInputValuesToUnitControllersValue();
             return;
         }
-        const { offset, absoluteRange, selectionRange } = unitController;
+        const { offset, absoluteRange, selectionRange } = activeData;
 
         // If there is no pre-existing selection range and the user only inputs one value
         // Make that both selection range start and end value
@@ -187,10 +167,10 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
         const endValid = isValid(userInputSelectionEnd);
 
         if (startValid && endValid) {
-            unitController.selectionRange = {
+            signalManager().fireUnitControllerManualInput({
                 start: userInputSelectionStart - offset,
                 end: userInputSelectionEnd - offset
-            };
+            })
         } else {
             this.setState({
                 userInputSelectionStartIsValid: startValid,
@@ -202,18 +182,24 @@ export class ReactTimeRangeDataWidget extends React.Component<ReactTimeRangeData
     render(): React.ReactNode {
 
         const {
-            viewRange,
-            selectionRange,
+            activeData,
             inputting,
             userInputSelectionStartIsValid,
             userInputSelectionEndIsValid,
-         } = this.state;
+        } = this.state;
+
+        let viewRange, selectionRange, offset;
+        if (activeData) {
+            offset = activeData.offset;
+            viewRange = activeData.viewRange;
+            selectionRange = activeData.selectionRange;
+        }
 
         const sectionClassName = 'view-range-widget-section';
         const errorClassName = `${sectionClassName} invalid-input`;
 
-        const { start: viewRangeStart, end: viewRangeEnd } = this.getStartAndEnd(viewRange?.start, viewRange?.end);
-        const { start: selectionRangeStart, end: selectionRangeEnd } = this.getStartAndEnd(selectionRange?.start, selectionRange?.end);
+        const { start: viewRangeStart, end: viewRangeEnd } = this.getStartAndEnd(viewRange?.start, viewRange?.end, offset);
+        const { start: selectionRangeStart, end: selectionRangeEnd } = this.getStartAndEnd(selectionRange?.start, selectionRange?.end, offset);
 
         const startValid = inputting ? userInputSelectionStartIsValid : true;
         const endValid = inputting ? userInputSelectionEndIsValid : true;

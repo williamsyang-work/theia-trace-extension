@@ -253,7 +253,6 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
                             if (sendSignal) {
                                 signalManager().fireTraceViewerTabActivatedSignal(experiment);
                             }
-                            // this.dispatchNewActiveUnitController();
                             this.traceExplorerContribution.openView({
                                 activate: true
                             });
@@ -412,6 +411,7 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
         this.update();
     }
 
+
     protected async doHandleExperimentSelectedSignal(experiment: Experiment): Promise<void> {
         if (this.openedExperiment && this.openedExperiment.UUID === experiment.UUID) {
             // Update the trace UUID so that the overview can be opened
@@ -422,17 +422,8 @@ export class TraceViewerWidget extends ReactWidget implements StatefulWidget {
 
             this.shell.activateWidget(this.openedExperiment.UUID);
         }
-        // this.dispatchNewActiveUnitController();
     }
 
-    protected dispatchNewActiveUnitController = (): void => {
-        if (this.traceContextComponent.current?.unitController) {
-            signalManager().fireNewActiveUnitController(this.traceContextComponent.current.unitController);
-        } else {
-            // Sometimes the timing is off and TraceContextComponent isn't loaded yet.
-            setTimeout(this.dispatchNewActiveUnitController, 250);
-        }
-    };
     private async doHandleSaveAsCSVSignal(payload: {traceId: string, data: string}) {
         if (this.openedExperiment && payload && payload.traceId === this.openedExperiment.UUID) {
             const props: SaveFileDialogProps = {
