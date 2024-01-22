@@ -27,6 +27,10 @@ export class TraceExplorerPlaceholderWidget extends ReactWidget {
         const { loading } = this.state;
         return (
             <ReactExplorerPlaceholderWidget
+                // FIX THIS
+                serverOn={true}
+                tracesOpen={true}
+                handleStartServer={this.handleOpenTrace}
                 loading={loading}
                 handleOpenTrace={this.handleOpenTrace}
             ></ReactExplorerPlaceholderWidget>

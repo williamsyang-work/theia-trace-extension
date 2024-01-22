@@ -3,6 +3,7 @@ import { ITspClient } from 'tsp-typescript-client/lib/protocol/tsp-client';
 import { Query } from 'tsp-typescript-client/lib/models/query/query';
 import { OutputDescriptor } from 'tsp-typescript-client/lib/models/output-descriptor';
 import { TspClientResponse } from 'tsp-typescript-client/lib/protocol/tsp-client-response';
+import { ServerStateManager } from 'tsp-typescript-client/lib/protocol/request-manager';
 import { signalManager } from './signals/signal-manager';
 
 export class TraceManager {
@@ -83,7 +84,11 @@ export class TraceManager {
             traceResponse = await tryOpen(this.fTspClient, tryNb);
             tryNb++;
         }
+        console.dir(traceResponse);
         const trace = traceResponse.getModel();
+        console.log(`Open Trace: ${traceResponse.isOk()}`);
+        console.log(ServerStateManager.serverStatus);
+        console.dir(trace);
         if (traceResponse.isOk() && trace) {
             this.addTrace(trace);
             signalManager().fireTraceOpenedSignal(trace);
