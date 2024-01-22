@@ -3,7 +3,6 @@ import { ExperimentManager } from 'traceviewer-base/lib/experiment-manager';
 import { TraceManager } from 'traceviewer-base/lib/trace-manager';
 import { ITspClientProvider } from 'traceviewer-base/lib/tsp-client-provider';
 import { ITspClient } from 'tsp-typescript-client';
-import { ServerStateManager } from 'tsp-typescript-client/lib/protocol/request-manager';
 import { TheiaRpcTspProxy } from './theia-rpc-tsp-proxy';
 
 @injectable()
@@ -30,10 +29,6 @@ export class TspClientProvider implements ITspClientProvider {
 
     public getExperimentManager(): ExperimentManager {
         return this._experimentManager;
-    }
-
-    public getRequestManager(): typeof ServerStateManager {
-        return ServerStateManager;
     }
 
     /**
