@@ -83,12 +83,14 @@ export class TraceExplorerWidget extends BaseWidget {
         layout.addWidget(this.traceViewsContainer);
         this.node.tabIndex = 0;
         signalManager().on(Signals.OPENED_TRACES_UPDATED, this.onUpdateSignal);
+        this.connectionStatusClient.addServerStatusChangeListener(this.onServerStatusChange);
         this.update();
     }
 
     dispose(): void {
         super.dispose();
         signalManager().off(Signals.OPENED_TRACES_UPDATED, this.onUpdateSignal);
+        this.connectionStatusClient.removeServerStatusChangeListener(this.onServerStatusChange);
     }
 
     protected onUpdateSignal = (payload: OpenedTracesUpdatedSignalPayload): void =>
@@ -100,7 +102,7 @@ export class TraceExplorerWidget extends BaseWidget {
 
     protected onUpdateRequest(msg: Message): void {
         super.onUpdateRequest(msg);
-        if (this._numberOfOpenedTraces > 0) {
+        if (this._numberOfOpenedTraces > 0 && this.connectionStatusClient.getStatus() === true) {
             this.traceViewsContainer.show();
             this.placeholderWidget.hide();
         } else {
@@ -115,12 +117,19 @@ export class TraceExplorerWidget extends BaseWidget {
     }
 
     protected async onAfterShow(): Promise<void> {
-        this.connectionStatusClient.addConnectionStatusListener();
+        this.connectionStatusClient.activate();
         const status = await this.traceServerConnectionStatusProxy.getStatus();
         this.connectionStatusClient.updateStatus(status);
     }
 
     protected onAfterHide(): void {
-        this.connectionStatusClient.removeConnectionStatusListener();
+        this.connectionStatusClient.deactivate();
+    }
+
+    protected onServerStatusChange = (status: boolean): void => this.doHandleOnServerStatusChange(status);
+
+    protected doHandleOnServerStatusChange(status: boolean): void {
+        this.serverStatusWidget.updateStatus(status);
+        this.update();
     }
 }
