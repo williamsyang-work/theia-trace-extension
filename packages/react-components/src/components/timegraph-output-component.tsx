@@ -23,7 +23,12 @@ import { TspDataProvider } from './data-providers/tsp-data-provider';
 import { ReactTimeGraphContainer } from './utils/timegraph-container-component';
 import { OutputElementStyle } from 'tsp-typescript-client/lib/models/styles';
 import { EntryTree } from './utils/filter-tree/entry-tree';
-import { listToTree, getAllExpandedNodeIds, getIndexOfNode, validateNumArray } from './utils/filter-tree/utils';
+import {
+    listToTree,
+    getAllExpandedNodeIds,
+    getIndexOfNode,
+    validateNumArray
+} from './utils/filter-tree/utils';
 import hash from 'traceviewer-base/lib/utils/value-hash';
 import ColumnHeader from './utils/filter-tree/column-header';
 import { TimeGraphAnnotationComponent } from 'timeline-chart/lib/components/time-graph-annotation';
@@ -65,10 +70,11 @@ type TimegraphOutputState = AbstractTreeOutputState & {
     collapsedNodes: number[];
     collapsedMarkerNodes: number[];
     columns: ColumnHeader[];
-    dataRows: TimelineChart.TimeGraphRowModel[];
+    dataRows: Map<number, TimelineChart.TimeGraphRowModel>;
     searchString: string;
     filters: string[];
     menuItems?: ContextMenuItems;
+    emptyNodes: number[];
 };
 
 const COARSE_RESOLUTION_FACTOR = 8; // resolution factor to use for first (coarse) update
@@ -124,10 +130,11 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
             collapsedMarkerNodes: validateNumArray(this.props.persistChartState?.collapsedMarkerNodes)
                 ? (this.props.persistChartState.collapsedMarkerNodes as number[])
                 : [],
-            dataRows: [],
+            dataRows: new Map(),
             showTree: true,
             searchString: '',
-            filters: []
+            filters: [],
+            emptyNodes: []
         };
         this.selectedMarkerCategories = this.props.markerCategories;
         this.onToggleCollapse = this.onToggleCollapse.bind(this);
@@ -155,6 +162,7 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
         this.onCtxMenu = this.onCtxMenu.bind(this);
 
         const providers: TimeGraphChartProviders = {
+            // TODO - We need to ONLY fetch visible rows.  We need to add empty row logic into this.
             rowProvider: () => this.getTimegraphRowIds(),
             /**
              * @param range requested time range
@@ -334,10 +342,7 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
             prevProps.markerSetId !== this.props.markerSetId
         ) {
             this.selectedMarkerCategories = this.props.markerCategories;
-            if (
-                this.state.searchString?.length > 0 ||
-                this.state.filters.length > 0
-            ) {
+            if (this.state.searchString?.length > 0 || this.state.filters.length > 0) {
                 this._debouncedUpdateSearch();
             } else {
                 this.chartLayer.updateChart();
@@ -418,9 +423,18 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
     }
 
     private isVisible(entry: TimeGraphEntry): boolean {
+        // TODO - Do we need to add emptyEntrys to this isVisible method?
+        const { collapsedNodes, emptyNodes } = this.state;
+
+        // Check for empty nodes
+        if (emptyNodes.includes(entry.id) && this.shouldHideEmptyNodes) {
+            return false;
+        }
+
+        // Check for collapsed nodes
         let parentId = entry.parentId;
         while (parentId !== undefined && parentId !== -1) {
-            if (this.state.collapsedNodes.includes(parentId)) {
+            if (collapsedNodes.includes(parentId)) {
                 return false;
             }
             const parent = this.state.timegraphTree.find(e => e.id === parentId);
@@ -531,6 +545,8 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
                         showHeader={false}
                         onContextMenu={this.onCtxMenu}
                         className="table-tree timegraph-tree"
+                        emptyNodes={this.state.emptyNodes}
+                        hideEmptyNodes={this.shouldHideEmptyNodes}
                     />
                 </div>
                 <div ref={this.markerTreeRef} className="scrollable" style={{ height: this.getMarkersLayerHeight() }}>
@@ -712,6 +728,34 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
 
     resultsAreEmpty(): boolean {
         return this.state.timegraphTree.length === 0;
+    }
+
+    private identifyEmptyNodes(): void {
+        const emptyNodes: number[] = [];
+
+        this.state.dataRows.forEach((row, id) => {
+            let hasStates = false;
+
+            for (const state of row.states) {
+                if (state.data?.tags === undefined || state.data?.tags < 4) {
+                    hasStates = true;
+                    break;
+                }
+            }
+            // TODO => This has edge cases.  Make sure that the single state is also the length of the entire trace.
+            if (row.states.length === 1) {
+                hasStates = true;
+            } // This is an intentionally empty row.
+            if (hasStates === false) {
+                emptyNodes.push(id);
+            }
+        });
+
+        this.setState({ emptyNodes });
+    }
+
+    get shouldHideEmptyNodes(): boolean {
+        return this.state.searchString !== '' || this.state.filters.length > 0;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -984,12 +1028,15 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
     }
 
     private getTimegraphRowIds() {
-        return {
-            rowIds: getAllExpandedNodeIds(
-                listToTree(this.state.timegraphTree, this.state.columns),
-                this.state.collapsedNodes
-            )
-        };
+        const { timegraphTree, columns, collapsedNodes, emptyNodes } = this.state;
+
+        let rowIds = getAllExpandedNodeIds(listToTree(timegraphTree, columns), collapsedNodes);
+
+        if (this.shouldHideEmptyNodes) {
+            rowIds = rowIds.filter(id => !emptyNodes.includes(id));
+        }
+
+        return { rowIds };
     }
 
     private async fetchTimegraphData(
@@ -1007,6 +1054,7 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
             )!.style.visibility = 'visible';
         }
 
+        // We are filtering empty rows (if nessisary) in this.getTimeGraphRowIds()
         const ids = rowIds ? rowIds : this.getTimegraphRowIds().rowIds;
         const { start, end } = range;
         const newRange: TimelineChart.TimeGraphRange = range;
@@ -1034,7 +1082,18 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
                 this.props.traceId + this.props.outputDescriptor.id + 'handleSpinner'
             )!.style.visibility = 'hidden';
         }
-        this.setState({ dataRows: timeGraphData.rows });
+
+        if (timeGraphData.rows.length === 1) {
+            // We are doing a full search one row at a time.
+            // Replace the new high-res data
+            const fullSearchRow = timeGraphData.rows[0];
+            const dataRows = new Map(this.state.dataRows);
+            dataRows.set(fullSearchRow.id, fullSearchRow);
+            this.setState({ dataRows }, this.identifyEmptyNodes);
+        } else {
+            const dataRows = new Map(timeGraphData.rows.map(row => [row.id, row]));
+            this.setState({ dataRows }, this.identifyEmptyNodes);
+        }
 
         // Apply the pending selection here since the row provider had been called before this method.
         if (this.pendingSelection) {
@@ -1042,6 +1101,7 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
             this.pendingSelection = undefined;
             this.selectAndReveal(foundElement);
         }
+
         return {
             rows: timeGraphData ? timeGraphData.rows : [],
             range: newRange,

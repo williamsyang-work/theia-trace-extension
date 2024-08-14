@@ -48,7 +48,9 @@ export const listToTree = (list: Entry[], headers: ColumnHeader[]): TreeNode[] =
 };
 
 export const getAllExpandedNodeIds = (nodes: TreeNode[], collapsedNodes: number[]): number[] => {
+    // TODO - Do we need to add emptyRows to this helper function?
     const visibleIds: number[] = [];
+
     nodes.forEach((node: TreeNode) => {
         visibleIds.push(node.id);
         if (node.children.length && !collapsedNodes.includes(node.id)) {
@@ -70,3 +72,31 @@ export const validateNumArray = (arr: any | undefined): boolean => {
     }
     return false;
 };
+
+/**
+ * Removes specified nodes from the tree structure.
+ * @param nodes The array of root nodes of the tree.
+ * @param nodesToRemove An array of node IDs to be removed.
+ * @returns A new array of root nodes with specified nodes removed.
+ */
+export function filterEmptyNodes(nodes: TreeNode[], nodesToRemove: number[]): TreeNode[] {
+    // return nodes;
+    return nodes.reduce((acc: TreeNode[], node) => {
+        // If the current node is in the removal list, don't add it to the accumulator
+        if (nodesToRemove.includes(node.id)) {
+            return acc;
+        }
+
+        // Create a new node object with the same properties
+        const newNode: TreeNode = { ...node };
+
+        // Recursively remove nodes from children
+        if (newNode.children.length > 0) {
+            newNode.children = filterEmptyNodes(newNode.children, nodesToRemove);
+        }
+
+        // Add the new node to the accumulator
+        acc.push(newNode);
+        return acc;
+    }, []);
+}
