@@ -15,6 +15,12 @@ export interface ReactAvailableViewsProps {
     title: string;
     tspClientProvider: ITspClientProvider;
     contextMenuRenderer?: (event: React.MouseEvent<HTMLDivElement>, output: OutputDescriptor) => void;
+    /**
+     * This is a placeholder for the customization implementation.
+     *
+     * @returns
+     */
+    onCustomizationClick: (id: string) => void;
 }
 
 export interface ReactAvailableViewsState {
@@ -179,8 +185,9 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
         const idStringToNodeId: { [key: string]: number } = {};
 
         // Fill-in the lookup table
-        list.forEach(output => {
+        list.forEach((output, index) => {
             const node: TreeNode = this.entryToTreeNode(output, idStringToNodeId);
+            node.elementIndex = index;
             lookup[output.id] = node;
             this._nodeIdToOutput[node.id] = output;
         });
@@ -227,6 +234,38 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
                 parentId = existingId;
             }
         }
+
+        let customizable = entry.capabilities?.canCreate === true;
+        let getEnrichedContent: (() => JSX.Element) | undefined = undefined;
+
+        // const divStyle = {
+        //     display: 'flex',
+        //     justifyContent: 'space-between',
+        //     alignItems: 'center'
+        // };
+        if (customizable) {
+            const spanStyle = {
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                display: 'block'
+            };
+            getEnrichedContent = (): JSX.Element => (
+                <>
+                    <span style={spanStyle}>{entry.name}</span>
+                    <input
+                        className="input-button"
+                        type="button"
+                        value="Customize"
+                        onClick={e => {
+                            e.stopPropagation();
+                            this.props.onCustomizationClick(entry.id);
+                        }}
+                    ></input>
+                </>
+            );
+        }
+
         return {
             labels: labels,
             tooltips: tooltips,
@@ -234,7 +273,8 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
             isRoot: false,
             id: id,
             parentId: parentId,
-            children: []
+            children: [],
+            getEnrichedContent
         } as TreeNode;
     }
 }

@@ -8,4 +8,6 @@ export interface TreeNode {
     showTooltip?: boolean;
     elementIndex?: number;
     getElement?: () => JSX.Element;
+    getEnrichedContent?: () => JSX.Element;
+    CUSTOMIZABLE_TAG?: boolean;
 }

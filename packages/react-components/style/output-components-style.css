@@ -246,7 +246,8 @@ canvas {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
-    display: block;
+    display: flex;
+    align-items: center;
 }
 
 .item-properties-table .table-tree td span {
@@ -550,4 +551,19 @@ canvas {
     font-size: 16px;
     margin-left: 4px;
     cursor: pointer;
+}
+
+input[type="button"].input-button,
+input[type="submit"].input-button,
+input[type="reset"].input-button {
+    border: none;
+    color: var(--trace-viewer-button-foreground);
+    background-color: var(--trace-viewer-button-background);
+    min-width: 65px;
+    outline: none;
+    cursor: pointer;
+    padding: 4px 9px;
+    font-size-adjust: 0.45;
+    margin-left: auto;
+    margin-right: 10px;
 }
