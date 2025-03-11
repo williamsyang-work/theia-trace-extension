@@ -40,10 +40,10 @@ export class TableRow extends React.Component<TableRowProps> {
     renderToggleCollapse = (): React.ReactNode => {
         const width = (this.props.level + 1) * 12;
         return this.props.node.children.length === 0 ? (
-            <div style={{ width, paddingRight: 5, display: 'inline-block' }} />
+            <div style={{ width, paddingRight: 5, display: 'inline-block', flexShrink: 0 }} />
         ) : (
             <div
-                style={{ width, paddingRight: 5, textAlign: 'right', display: 'inline-block' }}
+                style={{ width, paddingRight: 5, textAlign: 'right', display: 'inline-block', flexShrink: 0 }}
                 onClick={this.handleCollapse}
             >
                 {this.isCollapsed() ? icons.expand : icons.collapse}

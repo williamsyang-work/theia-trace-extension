@@ -566,4 +566,25 @@ input[type="reset"].input-button {
     font-size-adjust: 0.45;
     margin-left: auto;
     margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.remove-output-button-container {
+    margin-right: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin-left: auto;
+}
+
+.remove-output-button {
+    background: none;
+    border: none;
+    visibility: visible;
+    margin-top: 2px;
+    color: var(--trace-viewer-ui-font-color0)
+}
+
+.remove-output-button :hover {
+    background: none;
 }

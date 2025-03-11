@@ -9,6 +9,8 @@ import { ExperimentManager } from 'traceviewer-base/lib/experiment-manager';
 import { FilterTree } from '../components/utils/filter-tree/tree';
 import { TreeNode } from '../components/utils/filter-tree/tree-node';
 import { getAllExpandedNodeIds } from '../components/utils/filter-tree/utils';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes } from '@fortawesome/free-solid-svg-icons';
 
 export interface ReactAvailableViewsProps {
     id: string;
@@ -17,10 +19,10 @@ export interface ReactAvailableViewsProps {
     contextMenuRenderer?: (event: React.MouseEvent<HTMLDivElement>, output: OutputDescriptor) => void;
     /**
      * This is a placeholder for the customization implementation.
-     *
+     * TODO - Make sure this comment an accurate reflection before PR.
      * @returns
      */
-    onCustomizationClick: (id: string) => void;
+    onCustomizationClick?: (entry: OutputDescriptor, experiment: Experiment) => void;
 }
 
 export interface ReactAvailableViewsState {
@@ -214,6 +216,7 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
     }
 
     private entryToTreeNode(entry: OutputDescriptor, idStringToNodeId: { [key: string]: number }): TreeNode {
+        console.dir(entry);
         const labels = [entry.name];
         let tooltips = undefined;
         if (entry.description) {
@@ -235,21 +238,21 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
             }
         }
 
-        let customizable = entry.capabilities?.canCreate === true;
-        let getEnrichedContent: (() => JSX.Element) | undefined = undefined;
+        // TODO this works but needs to be CLEANED UP
 
-        // const divStyle = {
-        //     display: 'flex',
-        //     justifyContent: 'space-between',
-        //     alignItems: 'center'
-        // };
-        if (customizable) {
-            const spanStyle = {
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                display: 'block'
-            };
+        let getEnrichedContent: (() => JSX.Element) | undefined = undefined;
+        let isCustomizableOutput = entry.capabilities?.canCreate === true;
+        let isDeletableOutput = entry.capabilities?.canDelete === true;
+
+        const spanStyle = {
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+            flexShrink: 1,
+            marginRight: '8px'
+        };
+        if (isCustomizableOutput) {
             getEnrichedContent = (): JSX.Element => (
                 <>
                     <span style={spanStyle}>{entry.name}</span>
@@ -257,15 +260,42 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
                         className="input-button"
                         type="button"
                         value="Customize"
-                        onClick={e => {
+                        title={`Add custom analysis to ${entry.name}`}
+                        onClick={async (e) => {
                             e.stopPropagation();
-                            this.props.onCustomizationClick(entry.id);
+                            if (this.props.onCustomizationClick) {
+                                await this.props.onCustomizationClick(entry, this._selectedExperiment as Experiment);
+                                this.updateAvailableViews();
+                            }
                         }}
                     ></input>
                 </>
             );
+        } else if (isDeletableOutput) {
+            getEnrichedContent = (): JSX.Element => (
+                <>
+                    <span style={spanStyle}>{entry.name}</span>
+                    <div
+                        className="remove-output-button-container"
+                        title={`Remove ${entry.name}`}
+                    >
+                        <button
+                            className="remove-output-button"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                // TODO should this be hard coded here?
+                                await this.props.tspClientProvider.getTspClient().deleteDerivedOutput(this._selectedExperiment?.UUID as string, entry?.parentId as string, entry.id);
+                                this.updateAvailableViews();
+                            }}
+                        >
+                            <FontAwesomeIcon icon={faTimes} />
+                        </button>
+                    </div>
+                </>
+            );
         }
-
+        
+        
         return {
             labels: labels,
             tooltips: tooltips,
