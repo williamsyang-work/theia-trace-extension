@@ -238,7 +238,7 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
             }
         }
 
-        // TODO this works but needs to be CLEANED UP
+        // TODO this works but needs to be CLEANED UP a lot
 
         let getEnrichedContent: (() => JSX.Element) | undefined = undefined;
         let isCustomizableOutput = entry.capabilities?.canCreate === true;
@@ -249,8 +249,7 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             minWidth: 0,
-            flexShrink: 1,
-            marginRight: '8px'
+            flexShrink: 1
         };
         if (isCustomizableOutput) {
             getEnrichedContent = (): JSX.Element => (
@@ -274,10 +273,10 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
         } else if (isDeletableOutput) {
             getEnrichedContent = (): JSX.Element => (
                 <>
-                    <span style={spanStyle}>{entry.name}</span>
+                    <span style={spanStyle}>{entry.configuration?.name}</span>
                     <div
                         className="remove-output-button-container"
-                        title={`Remove ${entry.name}`}
+                        title={`Remove "${entry.configuration?.name}"`}
                     >
                         <button
                             className="remove-output-button"
@@ -293,6 +292,7 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
                     </div>
                 </>
             );
+            tooltips = [entry.configuration?.description];
         }
         
         

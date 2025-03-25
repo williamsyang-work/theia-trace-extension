@@ -582,7 +582,8 @@ input[type="reset"].input-button {
     border: none;
     visibility: visible;
     margin-top: 2px;
-    color: var(--trace-viewer-ui-font-color0)
+    color: var(--trace-viewer-ui-font-color0);
+    cursor: pointer;
 }
 
 .remove-output-button :hover {

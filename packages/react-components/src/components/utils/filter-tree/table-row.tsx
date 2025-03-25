@@ -29,7 +29,8 @@ export class TableRow extends React.Component<TableRowProps> {
 
     isCollapsed = (): boolean => this.props.collapsedNodes.includes(this.props.node.id);
 
-    private handleCollapse = (): void => {
+    private handleCollapse = (e: React.MouseEvent<HTMLDivElement>): void => {
+        e.stopPropagation();
         this.props.onToggleCollapse(this.props.node.id);
     };
 
