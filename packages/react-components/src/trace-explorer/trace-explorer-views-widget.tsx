@@ -10,7 +10,7 @@ import { FilterTree } from '../components/utils/filter-tree/tree';
 import { TreeNode } from '../components/utils/filter-tree/tree-node';
 import { getAllExpandedNodeIds } from '../components/utils/filter-tree/utils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
 
 export interface ReactAvailableViewsProps {
     id: string;
@@ -216,95 +216,103 @@ export class ReactAvailableViewsWidget extends React.Component<ReactAvailableVie
     }
 
     private entryToTreeNode(entry: OutputDescriptor, idStringToNodeId: { [key: string]: number }): TreeNode {
-        console.dir(entry);
-        const labels = [entry.name];
-        let tooltips = undefined;
-        if (entry.description) {
-            tooltips = [entry.description];
-        }
-        let id = idStringToNodeId[entry.id];
-        if (id === undefined) {
-            id = this._idGenerator++;
-            idStringToNodeId[entry.id] = id;
-        }
+        let id = idStringToNodeId[entry.id] ?? (idStringToNodeId[entry.id] = this._idGenerator++);
+
         let parentId = -1;
         if (entry.parentId) {
-            const existingId = idStringToNodeId[entry.parentId];
-            if (existingId === undefined) {
-                parentId = this._idGenerator++;
-                idStringToNodeId[entry.parentId] = parentId;
-            } else {
-                parentId = existingId;
-            }
+            parentId = idStringToNodeId[entry.parentId] ?? (idStringToNodeId[entry.parentId] = this._idGenerator++);
         }
 
-        // TODO this works but needs to be CLEANED UP a lot
+        const treeNode: TreeNode = {
+            labels: [entry.name],
+            tooltips: entry.description ? [entry.description] : undefined,
+            showTooltip: true,
+            isRoot: false,
+            id,
+            parentId,
+            children: [],
+            getEnrichedContent: this.createEnrichedContent(entry)
+        };
 
-        let getEnrichedContent: (() => JSX.Element) | undefined = undefined;
-        let isCustomizableOutput = entry.capabilities?.canCreate === true;
-        let isDeletableOutput = entry.capabilities?.canDelete === true;
+        return treeNode;
+    }
 
-        const spanStyle = {
+    private createEnrichedContent(entry: OutputDescriptor): (() => JSX.Element) | undefined {
+        const isCustomizable = entry.capabilities?.canCreate === true;
+        const isDeletable = entry.capabilities?.canDelete === true;
+
+        if (!isCustomizable && !isDeletable) {
+            return undefined;
+        }
+
+        const nameSpanStyle = {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             minWidth: 0,
             flexShrink: 1
         };
-        if (isCustomizableOutput) {
-            getEnrichedContent = (): JSX.Element => (
+
+        if (isCustomizable) {
+            return (): JSX.Element => (
                 <>
-                    <span style={spanStyle}>{entry.name}</span>
-                    <input
-                        className="input-button"
-                        type="button"
-                        value="Customize"
+                    <span style={nameSpanStyle}>{entry.name}</span>
+                    <div
+                        className="remove-output-button-container"
                         title={`Add custom analysis to ${entry.name}`}
-                        onClick={async (e) => {
-                            e.stopPropagation();
-                            if (this.props.onCustomizationClick) {
-                                await this.props.onCustomizationClick(entry, this._selectedExperiment as Experiment);
-                                this.updateAvailableViews();
-                            }
-                        }}
-                    ></input>
+                    >
+                        <button
+                            className="remove-output-button"
+                            onClick={(e) => this.handleCustomizeClick(entry, e)}
+                        >
+                            <FontAwesomeIcon icon={faPlus} />
+                        </button>
+                    </div>
                 </>
             );
-        } else if (isDeletableOutput) {
-            getEnrichedContent = (): JSX.Element => (
+        } else { // Must be deletable based on our conditions
+            return (): JSX.Element => (
                 <>
-                    <span style={spanStyle}>{entry.configuration?.name}</span>
+                    <span style={nameSpanStyle}>{entry.configuration?.name}</span>
                     <div
                         className="remove-output-button-container"
                         title={`Remove "${entry.configuration?.name}"`}
                     >
                         <button
                             className="remove-output-button"
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                // TODO should this be hard coded here?
-                                await this.props.tspClientProvider.getTspClient().deleteDerivedOutput(this._selectedExperiment?.UUID as string, entry?.parentId as string, entry.id);
-                                this.updateAvailableViews();
-                            }}
+                            onClick={(e) => this.handleDeleteClick(entry, e)}
                         >
                             <FontAwesomeIcon icon={faTimes} />
                         </button>
                     </div>
                 </>
             );
-            tooltips = [entry.configuration?.description];
         }
-        
-        
-        return {
-            labels: labels,
-            tooltips: tooltips,
-            showTooltip: true,
-            isRoot: false,
-            id: id,
-            parentId: parentId,
-            children: [],
-            getEnrichedContent
-        } as TreeNode;
+    }
+
+    private handleCustomizeClick = async (entry: OutputDescriptor, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (this.props.onCustomizationClick && this._selectedExperiment) {
+            await this.props.onCustomizationClick(entry, this._selectedExperiment);
+            this.updateAvailableViews();
+        }
+    }
+
+    private handleDeleteClick = async (entry: OutputDescriptor, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (this._selectedExperiment?.UUID) {
+            console.dir(entry);
+            const res = await this.props.tspClientProvider.getTspClient().deleteDerivedOutput(
+                this._selectedExperiment.UUID,
+                entry.parentId as string,
+                entry.id
+            );
+            if (!res.isOk()) {
+                // request is failing for some reason...
+                // But the output is removed when we update available views regardless
+                console.error(`${res.getStatusCode()} - ${res.getStatusMessage()}`);
+            }
+            this.updateAvailableViews();
+        }
     }
 }
