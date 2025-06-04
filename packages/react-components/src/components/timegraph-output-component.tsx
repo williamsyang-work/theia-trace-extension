@@ -316,11 +316,33 @@ export class TimegraphOutputComponent extends AbstractTreeOutputComponent<Timegr
                 } else {
                     columns.push({ title: '', sortable: true, resizable: true });
                 }
+ 
+                let newList: number[] = [];
+                /**
+                 * This only collapses children under root node.
+                 * Does not account for actual value of `expandLevel`
+                 * Need to accomidate this functionality
+                 */
+                if (treeResponse.model.expandLevel !== -1 && this.state.collapsedNodes.length === 0) {
+                    const nodes = listToTree(treeResponse.model.entries, columns)
+                    nodes.forEach(node => {
+                        if (node.isRoot) {
+                            const children = node.children;
+                            children.forEach(child => {
+                                if (child.children.length > 0 && !newList.includes(child.id)) {
+                                    newList.push(child.id)
+                                }
+                            });
+                        }
+                    });
+                }
+ 
                 this.setState(
                     {
                         outputStatus: treeResponse.status,
                         timegraphTree: treeResponse.model.entries,
                         defaultOrderedIds: treeResponse.model.entries.map(entry => entry.id),
+                        collapsedNodes: newList.length > 0 ? newList : this.state.collapsedNodes,
                         columns
                     },
                     this.updateTotalHeight
